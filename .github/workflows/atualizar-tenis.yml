@@ -1,0 +1,26 @@
+name: Atualizar Tenis KM Runners
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 12 * * *"
+    - cron: "30 21 * * *"
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Configurar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        run: pip install requests
+      - name: Atualizar tenis no Airtable
+        env:
+          GNEWS_API_KEY: ${{ secrets.GNEWS_API_KEY }}
+          AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          AIRTABLE_TABLE: Tenis
+          TEMAS: 'tenis de corrida; tenis corrida lancamento OR review; melhores tenis corrida'
+        run: python scripts/atualizar_noticias.py

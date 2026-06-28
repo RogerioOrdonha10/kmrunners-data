@@ -1,5 +1,5 @@
 """
-RunBR — Robô de manutenção de Eventos
+KM Runners — Robô de manutenção de Eventos
 Roda 1x por semana e:
   • Identifica eventos com data anterior a hoje
   • Apaga a data (campo data fica vazio)
@@ -138,3 +138,7 @@ def main():
     print(f"Eventos a atualizar: {len(updates)}")
     atualizar_registros(updates)
     print(f"Atualização concluída em {datetime.now().isoformat()}")
+
+
+if __name__ == "__main__":
+    main()

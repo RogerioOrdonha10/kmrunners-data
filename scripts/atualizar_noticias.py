@@ -1,12 +1,19 @@
 """
 KM Runners — Atualizador automático de notícias
-GNews API -> Airtable (tabela Noticias)
+GNews API -> Airtable (tabela Noticias / Tenis)
 
 Variáveis de ambiente necessárias (GitHub Secrets):
   GNEWS_API_KEY      - chave da GNews (gnews.io)
   AIRTABLE_TOKEN     - Personal Access Token do Airtable (pat...)
   AIRTABLE_BASE_ID   - ex: appmRv32Vt5S1UfbY
   AIRTABLE_TABLE     - ex: Noticias
+
+Variáveis opcionais (definidas por workflow; usam padrão se ausentes):
+  TEMAS                 - temas separados por ";"
+  MAX_POR_TEMA          - notícias por tema por execução (padrão 5)
+  MAX_REGISTROS_TABELA  - teto de registros na tabela (padrão 30)
+  DIAS_VALIDADE         - dias até a notícia expirar (padrão 7)
+  PISO_MINIMO           - mínimo sempre mantido na tabela (padrão 10)
 """
 
 import os
@@ -31,10 +38,11 @@ TEMAS_PADRAO = [
 ]
 TEMAS = [t.strip() for t in os.environ.get("TEMAS", "").split(";") if t.strip()] or TEMAS_PADRAO
 
-MAX_POR_TEMA = 5            # notícias por tema a cada execução
-MAX_REGISTROS_TABELA = 30  # teto: mantém a tabela enxuta
-DIAS_VALIDADE = 7          # notícia some depois de 7 dias
-PISO_MINIMO = 10           # nunca deixa a tabela com menos que isso (evita app vazio)
+# Parâmetros configuráveis por env (com padrões seguros)
+MAX_POR_TEMA = int(os.environ.get("MAX_POR_TEMA", "5"))
+MAX_REGISTROS_TABELA = int(os.environ.get("MAX_REGISTROS_TABELA", "30"))
+DIAS_VALIDADE = int(os.environ.get("DIAS_VALIDADE", "7"))
+PISO_MINIMO = int(os.environ.get("PISO_MINIMO", "10"))
 
 # Imagem fallback caso a notícia venha sem foto
 IMAGEM_PADRAO = "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=640"

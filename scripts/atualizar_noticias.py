@@ -1,5 +1,5 @@
 """
-RunBR — Atualizador automático de notícias
+KM Runners — Atualizador automático de notícias
 GNews API -> Airtable (tabela Noticias)
 
 Variáveis de ambiente necessárias (GitHub Secrets):
@@ -13,7 +13,7 @@ import os
 import time
 
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 GNEWS_API_KEY = os.environ["GNEWS_API_KEY"]
 AIRTABLE_TOKEN = os.environ["AIRTABLE_TOKEN"]
@@ -31,8 +31,10 @@ TEMAS_PADRAO = [
 ]
 TEMAS = [t.strip() for t in os.environ.get("TEMAS", "").split(";") if t.strip()] or TEMAS_PADRAO
 
-MAX_POR_TEMA = 5          # notícias por tema a cada execução
-MAX_REGISTROS_TABELA = 30  # mantém a tabela enxuta (apaga as mais antigas)
+MAX_POR_TEMA = 5            # notícias por tema a cada execução
+MAX_REGISTROS_TABELA = 30  # teto: mantém a tabela enxuta
+DIAS_VALIDADE = 7          # notícia some depois de 7 dias
+PISO_MINIMO = 10           # nunca deixa a tabela com menos que isso (evita app vazio)
 
 # Imagem fallback caso a notícia venha sem foto
 IMAGEM_PADRAO = "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=640"
@@ -94,6 +96,15 @@ def apagar_registros(ids: list):
         r.raise_for_status()
 
 
+def _data_registro(reg: dict):
+    """Retorna a data (date) do registro, ou None se inválida/vazia."""
+    data_str = (reg.get("fields", {}).get("data", "") or "")[:10]
+    try:
+        return datetime.strptime(data_str, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 def main():
     existentes = listar_registros_airtable()
     links_existentes = {
@@ -101,6 +112,7 @@ def main():
     }
     print(f"Registros atuais na tabela: {len(existentes)}")
 
+    # --- Busca e insere notícias novas ---
     novos = []
     for tema in TEMAS:
         time.sleep(2)  # respeita o limite de 1 req/s do GNews free
@@ -130,16 +142,40 @@ def main():
     else:
         print("Nenhuma notícia nova.")
 
-    # Limpeza: mantém só as MAX_REGISTROS_TABELA mais recentes
+    # --- Limpeza: por IDADE (com piso mínimo) + teto de quantidade ---
     todos = listar_registros_airtable()
-    if len(todos) > MAX_REGISTROS_TABELA:
-        todos_ordenados = sorted(
-            todos,
-            key=lambda r: r.get("fields", {}).get("data", "") or "",
-            reverse=True,
-        )
-        excedentes = [r["id"] for r in todos_ordenados[MAX_REGISTROS_TABELA:]]
-        apagar_registros(excedentes)
-        print(f"Removidos {len(excedentes)} registros antigos.")
+    hoje = datetime.now().date()
+    limite = hoje - timedelta(days=DIAS_VALIDADE)
 
-    print(f"Concluído em {datetime.now().isoformat()}")
+    # Ordena do mais novo para o mais antigo (sem data vai pro fim)
+    todos_ord = sorted(
+        todos,
+        key=lambda r: _data_registro(r) or datetime.min.date(),
+        reverse=True,
+    )
+
+    ids_apagar = set()
+
+    # 1) Marca por idade — mas protege o piso mínimo (as N mais novas nunca saem)
+    protegidos = {r["id"] for r in todos_ord[:PISO_MINIMO]}
+    for r in todos_ord:
+        if r["id"] in protegidos:
+            continue
+        data_pub = _data_registro(r)
+        if data_pub is None or data_pub < limite:
+            ids_apagar.add(r["id"])
+
+    # 2) Teto de quantidade — entre os que sobraram, mantém só os MAX mais recentes
+    restantes = [r for r in todos_ord if r["id"] not in ids_apagar]
+    if len(restantes) > MAX_REGISTROS_TABELA:
+        ids_apagar.update(r["id"] for r in restantes[MAX_REGISTROS_TABELA:])
+
+    if ids_apagar:
+        apagar_registros(list(ids_apagar))
+        print(f"Removidos {len(ids_apagar)} registros (idade + teto).")
+    else:
+        print("Nada a remover.")
+
+
+if __name__ == "__main__":
+    main()

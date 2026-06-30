@@ -23,4 +23,6 @@ jobs:
           AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
           AIRTABLE_TABLE: Tenis
           TEMAS: 'tenis de corrida; tenis corrida lancamento OR review; melhores tenis corrida'
+          DIAS_VALIDADE: '30'
+          PISO_MINIMO: '8'
         run: python scripts/atualizar_noticias.py

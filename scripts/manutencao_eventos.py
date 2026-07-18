@@ -6,6 +6,7 @@ Roda 1x por semana e:
   • Garante que o campo 'mes' está preenchido (usa o mês da data antiga)
   • Marca 'revisar' = true para você confirmar/reagendar na próxima edição
   • Gera cidades.json (fonte do dropdown dinâmico de cidades da BuscaPage)
+  • Gera distancias.json (fonte do dropdown dinâmico de KM da BuscaPage)
   • Mantém intactos: nome, km, cidade, estado, zona, organizador, link
 Variáveis de ambiente (GitHub Secrets):
   AIRTABLE_TOKEN     - Personal Access Token com escopo data.records:read + write
@@ -27,6 +28,7 @@ COL_DATA = "data"
 COL_MES = "mes"
 COL_REVISAR = "revisar"
 COL_CIDADE = "cidade"
+COL_KM = "km"
 
 # Mapeamento mês → label que vai para a coluna 'mes'
 # Mantemos consistência com o dropdown do Flutter (português, capitalizado)
@@ -101,13 +103,38 @@ def gerar_cidades_json(registros: list):
     print(f"cidades.json gerado: {len(cidades_ordenadas)} cidades.")
 
 
+def gerar_distancias_json(registros: list):
+    """Extrai distâncias (km) únicas dos eventos, ordena numericamente e grava distancias.json."""
+    distancias = set()
+    for reg in registros:
+        valor = reg.get("fields", {}).get(COL_KM)
+        if valor is not None:
+            try:
+                distancias.add(float(valor))
+            except (ValueError, TypeError):
+                continue
+
+    distancias_ordenadas = sorted(distancias)
+    # Formata como "5km", "10km", "42km" etc, sem casas decimais desnecessárias
+    labels = [
+        f"{int(d)}km" if d == int(d) else f"{d}km"
+        for d in distancias_ordenadas
+    ]
+
+    with open("distancias.json", "w", encoding="utf-8") as f:
+        json.dump(labels, f, ensure_ascii=False, indent=2)
+
+    print(f"distancias.json gerado: {len(labels)} distâncias.")
+
+
 def main():
     hoje = date.today()
     todos = listar_todos_registros()
     print(f"Total de eventos na tabela: {len(todos)}")
 
-    # Gera o cidades.json SEMPRE (independe de haver eventos passados)
+    # Gera cidades.json e distancias.json SEMPRE (independe de haver eventos passados)
     gerar_cidades_json(todos)
+    gerar_distancias_json(todos)
 
     updates = []
     for reg in todos:

@@ -18,6 +18,7 @@ Variáveis opcionais (definidas por workflow; usam padrão se ausentes):
 
 import os
 import time
+import unicodedata
 
 import requests
 from datetime import datetime, timedelta
@@ -46,6 +47,35 @@ PISO_MINIMO = int(os.environ.get("PISO_MINIMO", "10"))
 
 # Imagem fallback caso a notícia venha sem foto
 IMAGEM_PADRAO = "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=640"
+
+# --- Blacklist de termos trágicos/policiais (descarta a notícia) ---
+BLACKLIST = {
+    "morre", "morreu", "morte", "morto", "morta", "mortos", "mortas",
+    "faleceu", "obito", "cadaver", "suicidio", "suicida", "se lancou",
+    "se jogou", "caiu", "cair", "queda", "despencou", "acidente",
+    "atropelado", "atropelada", "atropelamento", "assassinato",
+    "assassinado", "assassinada", "homicidio", "esfaqueado", "esfaqueada",
+    "baleado", "baleada", "tiro", "tiros", "tiroteio", "crime", "criminoso",
+    "preso", "presa", "prisao", "estupro", "abuso", "sequestro", "incendio",
+    "afogamento", "afogou", "violencia", "agressao", "espancado",
+    "espancada", "feminicidio", "delegacia",
+}
+
+
+def _normalizar(texto: str) -> str:
+    """Minúsculo e sem acento, para comparar com a blacklist."""
+    if not texto:
+        return ""
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return texto.lower()
+
+
+def contem_termo_bloqueado(*campos) -> bool:
+    """True se qualquer campo contiver um termo da blacklist (palavra inteira)."""
+    palavras = set(_normalizar(" ".join(c for c in campos if c)).split())
+    return bool(palavras & BLACKLIST)
+
 
 AIRTABLE_URL = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE}"
 HEADERS = {
@@ -122,6 +152,7 @@ def main():
 
     # --- Busca e insere notícias novas ---
     novos = []
+    bloqueadas = 0
     for tema in TEMAS:
         time.sleep(2)  # respeita o limite de 1 req/s do GNews free
         try:
@@ -133,16 +164,25 @@ def main():
             link = a.get("url", "")
             if not link or link in links_existentes:
                 continue
+            titulo = a.get("title") or ""
+            descricao = a.get("description") or ""
+            if contem_termo_bloqueado(titulo, descricao):
+                bloqueadas += 1
+                print(f"[BLOQUEADA] {titulo[:70]}")
+                continue
             links_existentes.add(link)
             novos.append(
                 {
-                    "titulo": (a.get("title") or "")[:200],
+                    "titulo": titulo[:200],
                     "image": a.get("image") or IMAGEM_PADRAO,
                     "data": (a.get("publishedAt") or "")[:10],
                     "link": link,
                     "fonte": (a.get("source") or {}).get("name", ""),
                 }
             )
+
+    if bloqueadas:
+        print(f"Total bloqueadas pela blacklist: {bloqueadas}")
 
     if novos:
         criar_registros(novos)

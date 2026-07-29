@@ -14,9 +14,11 @@ Variáveis opcionais (definidas por workflow; usam padrão se ausentes):
   MAX_REGISTROS_TABELA  - teto de registros na tabela (padrão 30)
   DIAS_VALIDADE         - dias até a notícia expirar (padrão 7)
   PISO_MINIMO           - mínimo sempre mantido na tabela (padrão 10)
+  SIMILARIDADE_DEDUP    - fração de palavras iguais p/ considerar repetida (padrão 0.50)
 """
 
 import os
+import re
 import time
 import unicodedata
 
@@ -29,12 +31,14 @@ AIRTABLE_BASE_ID = os.environ["AIRTABLE_BASE_ID"]
 AIRTABLE_TABLE = os.environ.get("AIRTABLE_TABLE", "Noticias")
 
 # Temas buscados — configuráveis pelo workflow via env TEMAS (separados por ";")
+# Endurecidos: cada tema agora exige contexto esportivo real, reduzindo lixo
+# político/geral que "Brasil"/"São Paulo" sozinhos traziam.
 TEMAS_PADRAO = [
     '"corrida de rua"',
     "maratona OR meia-maratona",
-    '"bem-estar" corrida OR treino',
+    '"corrida" (treino OR "bem-estar" OR preparo)',
     '"running" OR "pace" treino',
-    '"corredor" Brasil OR "São Paulo"',
+    '"corredor" (corrida OR maratona OR atletismo OR prova)',
     '"prova de corrida" OR "circuito de corrida"',
 ]
 TEMAS = [t.strip() for t in os.environ.get("TEMAS", "").split(";") if t.strip()] or TEMAS_PADRAO
@@ -44,6 +48,7 @@ MAX_POR_TEMA = int(os.environ.get("MAX_POR_TEMA", "5"))
 MAX_REGISTROS_TABELA = int(os.environ.get("MAX_REGISTROS_TABELA", "30"))
 DIAS_VALIDADE = int(os.environ.get("DIAS_VALIDADE", "7"))
 PISO_MINIMO = int(os.environ.get("PISO_MINIMO", "10"))
+SIMILARIDADE_DEDUP = float(os.environ.get("SIMILARIDADE_DEDUP", "0.50"))
 
 # Imagem fallback caso a notícia venha sem foto
 IMAGEM_PADRAO = "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=640"
@@ -61,9 +66,20 @@ BLACKLIST = {
     "espancada", "feminicidio", "delegacia",
 }
 
+# Palavras vazias (stopwords) ignoradas na comparação de similaridade de títulos
+STOPWORDS = {
+    "a", "o", "as", "os", "um", "uma", "uns", "umas", "de", "do", "da", "dos",
+    "das", "e", "ou", "no", "na", "nos", "nas", "em", "para", "por", "com",
+    "sem", "que", "se", "ao", "aos", "as", "à", "às", "the", "of", "in", "on",
+    "apos", "sobre", "entre", "ate", "pela", "pelo", "pelas", "pelos", "seu",
+    "sua", "seus", "suas", "este", "esta", "esse", "essa", "isso", "mais",
+    "mil", "reune", "tem", "neste", "nesta", "domingo", "sabado", "hoje",
+    "ano", "anos", "2025", "2026",
+}
+
 
 def _normalizar(texto: str) -> str:
-    """Minúsculo e sem acento, para comparar com a blacklist."""
+    """Minúsculo e sem acento."""
     if not texto:
         return ""
     texto = unicodedata.normalize("NFKD", texto)
@@ -75,6 +91,30 @@ def contem_termo_bloqueado(*campos) -> bool:
     """True se qualquer campo contiver um termo da blacklist (palavra inteira)."""
     palavras = set(_normalizar(" ".join(c for c in campos if c)).split())
     return bool(palavras & BLACKLIST)
+
+
+def _palavras_chave(titulo: str) -> set:
+    """Conjunto de palavras significativas do título (sem acento, sem stopword,
+    só termos com 3+ letras)."""
+    texto = _normalizar(titulo)
+    texto = re.sub(r"[^a-z0-9\s]", " ", texto)  # remove pontuação
+    return {p for p in texto.split() if len(p) >= 3 and p not in STOPWORDS}
+
+
+def eh_repetida(titulo: str, titulos_aceitos: list) -> bool:
+    """True se o título for muito parecido com algum já aceito.
+    Usa índice de Jaccard: |interseção| / |união| das palavras-chave."""
+    novo = _palavras_chave(titulo)
+    if not novo:
+        return False
+    for existente in titulos_aceitos:
+        if not existente:
+            continue
+        inter = novo & existente
+        uniao = novo | existente
+        if uniao and len(inter) / len(uniao) >= SIMILARIDADE_DEDUP:
+            return True
+    return False
 
 
 AIRTABLE_URL = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE}"
@@ -148,11 +188,16 @@ def main():
     links_existentes = {
         reg.get("fields", {}).get("link", "") for reg in existentes
     }
+    # Títulos já na tabela viram conjuntos de palavras-chave p/ dedup por similaridade
+    titulos_aceitos = [
+        _palavras_chave(reg.get("fields", {}).get("titulo", "")) for reg in existentes
+    ]
     print(f"Registros atuais na tabela: {len(existentes)}")
 
     # --- Busca e insere notícias novas ---
     novos = []
     bloqueadas = 0
+    repetidas = 0
     for tema in TEMAS:
         time.sleep(2)  # respeita o limite de 1 req/s do GNews free
         try:
@@ -166,11 +211,18 @@ def main():
                 continue
             titulo = a.get("title") or ""
             descricao = a.get("description") or ""
+            # 1) descarta notícia trágica/policial
             if contem_termo_bloqueado(titulo, descricao):
                 bloqueadas += 1
                 print(f"[BLOQUEADA] {titulo[:70]}")
                 continue
+            # 2) descarta se for a mesma notícia de outra fonte (título parecido)
+            if eh_repetida(titulo, titulos_aceitos):
+                repetidas += 1
+                print(f"[REPETIDA]  {titulo[:70]}")
+                continue
             links_existentes.add(link)
+            titulos_aceitos.append(_palavras_chave(titulo))
             novos.append(
                 {
                     "titulo": titulo[:200],
@@ -183,6 +235,8 @@ def main():
 
     if bloqueadas:
         print(f"Total bloqueadas pela blacklist: {bloqueadas}")
+    if repetidas:
+        print(f"Total ignoradas por serem repetidas: {repetidas}")
 
     if novos:
         criar_registros(novos)

@@ -10,7 +10,7 @@ Variáveis de ambiente necessárias (GitHub Secrets):
 
 Variáveis opcionais (definidas por workflow; usam padrão se ausentes):
   TEMAS                 - temas separados por ";"
-  MAX_POR_TEMA          - notícias por tema por execução (padrão 5)
+  MAX_POR_TEMA          - notícias por tema por execução (padrão 10)
   MAX_REGISTROS_TABELA  - teto de registros na tabela (padrão 30)
   DIAS_VALIDADE         - dias até a notícia expirar (padrão 7)
   PISO_MINIMO           - mínimo sempre mantido na tabela (padrão 10)
@@ -31,20 +31,21 @@ AIRTABLE_BASE_ID = os.environ["AIRTABLE_BASE_ID"]
 AIRTABLE_TABLE = os.environ.get("AIRTABLE_TABLE", "Noticias")
 
 # Temas buscados — configuráveis pelo workflow via env TEMAS (separados por ";")
-# Endurecidos: cada tema agora exige contexto esportivo real, reduzindo lixo
-# político/geral que "Brasil"/"São Paulo" sozinhos traziam.
+# IMPORTANTE: no plano free do GNews, use parênteses ao redor de grupos com OR:
+#   BOM:  (maratona OR "meia-maratona")
+#   RUIM: maratona OR meia-maratona   <- pode dar 400 Bad Request
 TEMAS_PADRAO = [
     '"corrida de rua"',
-    "maratona OR meia-maratona",
+    '(maratona OR "meia-maratona")',
     '"corrida" (treino OR "bem-estar" OR preparo)',
-    '"running" OR "pace" treino',
+    '("running" OR "pace") treino',
     '"corredor" (corrida OR maratona OR atletismo OR prova)',
-    '"prova de corrida" OR "circuito de corrida"',
+    '("prova de corrida" OR "circuito de corrida")',
 ]
 TEMAS = [t.strip() for t in os.environ.get("TEMAS", "").split(";") if t.strip()] or TEMAS_PADRAO
 
 # Parâmetros configuráveis por env (com padrões seguros)
-MAX_POR_TEMA = int(os.environ.get("MAX_POR_TEMA", "5"))
+MAX_POR_TEMA = int(os.environ.get("MAX_POR_TEMA", "10"))
 MAX_REGISTROS_TABELA = int(os.environ.get("MAX_REGISTROS_TABELA", "30"))
 DIAS_VALIDADE = int(os.environ.get("DIAS_VALIDADE", "7"))
 PISO_MINIMO = int(os.environ.get("PISO_MINIMO", "10"))
@@ -54,16 +55,28 @@ SIMILARIDADE_DEDUP = float(os.environ.get("SIMILARIDADE_DEDUP", "0.50"))
 IMAGEM_PADRAO = "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=640"
 
 # --- Blacklist de termos trágicos/policiais (descarta a notícia) ---
-BLACKLIST = {
+# Dividida em duas: termos SEMPRE bloqueados, e AMBÍGUOS que só bloqueiam
+# quando NÃO há contexto de tênis/promoção (ex.: "preço caiu 40%" é oferta, não tragédia).
+BLACKLIST_FORTE = {
     "morre", "morreu", "morte", "morto", "morta", "mortos", "mortas",
     "faleceu", "obito", "cadaver", "suicidio", "suicida", "se lancou",
-    "se jogou", "caiu", "cair", "queda", "despencou", "acidente",
-    "atropelado", "atropelada", "atropelamento", "assassinato",
-    "assassinado", "assassinada", "homicidio", "esfaqueado", "esfaqueada",
-    "baleado", "baleada", "tiro", "tiros", "tiroteio", "crime", "criminoso",
-    "preso", "presa", "prisao", "estupro", "abuso", "sequestro", "incendio",
-    "afogamento", "afogou", "violencia", "agressao", "espancado",
-    "espancada", "feminicidio", "delegacia",
+    "se jogou", "assassinato", "assassinado", "assassinada", "homicidio",
+    "esfaqueado", "esfaqueada", "baleado", "baleada", "tiro", "tiros",
+    "tiroteio", "crime", "criminoso", "preso", "presa", "prisao", "estupro",
+    "abuso", "sequestro", "afogamento", "afogou", "violencia", "agressao",
+    "espancado", "espancada", "feminicidio", "delegacia", "atropelado",
+    "atropelada", "atropelamento",
+}
+# Ambíguos: aparecem tanto em tragédia ("atleta caiu") quanto em promoção
+# ("preço caiu"). Só bloqueiam se NÃO houver palavra de contexto seguro.
+BLACKLIST_AMBIGUA = {
+    "caiu", "cair", "queda", "despencou", "acidente", "incendio",
+}
+# Se o título tiver alguma destas, os termos AMBÍGUOS são liberados.
+CONTEXTO_SEGURO = {
+    "tenis", "tenis", "desconto", "off", "oferta", "ofertas", "promocao",
+    "promocoes", "review", "lancamento", "cupom", "preco", "precos",
+    "black", "friday", "comprar", "loja", "modelo", "modelos",
 }
 
 # Palavras vazias (stopwords) ignoradas na comparação de similaridade de títulos
@@ -88,9 +101,16 @@ def _normalizar(texto: str) -> str:
 
 
 def contem_termo_bloqueado(*campos) -> bool:
-    """True se qualquer campo contiver um termo da blacklist (palavra inteira)."""
+    """True se algum campo tiver termo da blacklist.
+    Termos FORTES sempre bloqueiam. Termos AMBÍGUOS (caiu/queda/...) são
+    liberados quando o texto tem contexto de tênis/promoção."""
     palavras = set(_normalizar(" ".join(c for c in campos if c)).split())
-    return bool(palavras & BLACKLIST)
+    if palavras & BLACKLIST_FORTE:
+        return True
+    ambiguos = palavras & BLACKLIST_AMBIGUA
+    if ambiguos and not (palavras & CONTEXTO_SEGURO):
+        return True
+    return False
 
 
 def _palavras_chave(titulo: str) -> set:
@@ -125,7 +145,8 @@ HEADERS = {
 
 
 def buscar_gnews(query: str) -> list:
-    """Busca notícias em português/Brasil no GNews."""
+    """Busca notícias em português/Brasil no GNews.
+    Loga corpo do erro quando o GNews devolve 4xx (ajuda a achar query inválida)."""
     url = "https://gnews.io/api/v4/search"
     params = {
         "q": query,
@@ -136,7 +157,10 @@ def buscar_gnews(query: str) -> list:
         "apikey": GNEWS_API_KEY,
     }
     r = requests.get(url, params=params, timeout=30)
-    r.raise_for_status()
+    if r.status_code != 200:
+        # Mostra o motivo do GNews (ex.: query malformada) em vez de erro genérico
+        print(f"[GNEWS {r.status_code}] tema={query!r} -> {r.text[:200]}")
+        r.raise_for_status()
     return r.json().get("articles", [])
 
 

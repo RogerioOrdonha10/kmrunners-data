@@ -22,7 +22,7 @@ jobs:
           AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
           AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
           AIRTABLE_TABLE: Tenis
-          TEMAS: 'tenis de corrida; tenis corrida lancamento OR review; melhores tenis corrida'
+         TEMAS: 'tenis de corrida; ("tenis de corrida" OR "tenis corrida") (lancamento OR review OR lançamento); melhores tenis de corrida'
           DIAS_VALIDADE: '30'
           PISO_MINIMO: '8'
         run: python scripts/atualizar_noticias.py

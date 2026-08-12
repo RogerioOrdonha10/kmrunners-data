@@ -79,6 +79,36 @@ CONTEXTO_SEGURO = {
     "black", "friday", "comprar", "loja", "modelo", "modelos",
 }
 
+# --- Filtro FORA DE TEMA (filme/série/futebol/política) ---
+# Termos que denunciam assunto alheio. Se aparecerem, a notícia SÓ é mantida
+# quando houver PROVA_CORRIDA (evidência real de corrida) no título/descrição.
+FORA_DE_TEMA = {
+    # cinema / streaming / tv
+    "filme", "filmes", "serie", "series", "netflix", "streaming", "cinema",
+    "episodio", "episodios", "temporada", "temporadas", "elenco", "ator",
+    "atriz", "trailer", "estreia", "rotten", "tomatoes", "hbo", "disney",
+    "prime", "assistir", "pipoca", "bastidores", "wicked", "oscar",
+    # futebol / clubes / esportes de bola
+    "jogador", "jogadores", "gol", "gols", "cruzeiro", "flamengo",
+    "palmeiras", "corinthians", "santos", "atletico", "brasileirao",
+    "libertadores", "campeonato", "tecnico", "escalacao", "goleiro",
+    "rodizio", "intercolegial",
+    # música / cultura / política
+    "sertanejo", "reveillon", "show", "festival", "artista", "artistas",
+    "cantor", "cantora", "musica", "politica", "eleicao", "presidente",
+    "deputado", "senador", "prefeito", "lgbtqia",
+}
+# PROVA de que É corrida de verdade (libera a notícia mesmo com termo alheio).
+# NOTA: "maratona" sozinha NÃO entra aqui — é o gancho do uso figurado
+# ("maratona de filmes", "maratona de jogos").
+PROVA_CORRIDA = {
+    "corrida de rua", "meia-maratona", "meia maratona", "corredor",
+    "corredores", "atleta", "atletas", "atletismo", "largada", "largadas",
+    "pace", "quilometro", "quilometros", "percurso", "prova de corrida",
+    "circuito de corrida", "km de corrida", "corrida de", "running",
+    "corrida da", "corrida no", "corrida em",
+}
+
 # Palavras vazias (stopwords) ignoradas na comparação de similaridade de títulos
 STOPWORDS = {
     "a", "o", "as", "os", "um", "uma", "uns", "umas", "de", "do", "da", "dos",
@@ -111,6 +141,22 @@ def contem_termo_bloqueado(*campos) -> bool:
     if ambiguos and not (palavras & CONTEXTO_SEGURO):
         return True
     return False
+
+
+def eh_fora_de_tema(*campos) -> bool:
+    """True se o texto parecer de outro assunto (filme/futebol/música/etc.)
+    SEM prova real de corrida. 'Maratona' figurada não salva a notícia.
+
+    Regra: se houver termo de tema alheio (FORA_DE_TEMA) e NÃO houver
+    nenhuma PROVA_CORRIDA, a notícia é considerada fora de tema."""
+    texto = _normalizar(" ".join(c for c in campos if c))
+    palavras = set(texto.split())
+    tem_termo_alheio = bool(palavras & FORA_DE_TEMA)
+    if not tem_termo_alheio:
+        return False  # nenhum tema alheio -> segue normal
+    # tem termo alheio: só mantém se houver prova forte de corrida
+    tem_prova = any(p in texto for p in PROVA_CORRIDA)
+    return not tem_prova  # sem prova -> fora de tema -> bloqueia
 
 
 def _palavras_chave(titulo: str) -> set:
@@ -221,6 +267,7 @@ def main():
     # --- Busca e insere notícias novas ---
     novos = []
     bloqueadas = 0
+    fora_tema = 0
     repetidas = 0
     for tema in TEMAS:
         time.sleep(2)  # respeita o limite de 1 req/s do GNews free
@@ -239,6 +286,11 @@ def main():
             if contem_termo_bloqueado(titulo, descricao):
                 bloqueadas += 1
                 print(f"[BLOQUEADA] {titulo[:70]}")
+                continue
+            # 1b) descarta notícia de outro tema (filme/futebol) sem prova de corrida
+            if eh_fora_de_tema(titulo, descricao):
+                fora_tema += 1
+                print(f"[FORA-TEMA] {titulo[:70]}")
                 continue
             # 2) descarta se for a mesma notícia de outra fonte (título parecido)
             if eh_repetida(titulo, titulos_aceitos):
@@ -259,6 +311,8 @@ def main():
 
     if bloqueadas:
         print(f"Total bloqueadas pela blacklist: {bloqueadas}")
+    if fora_tema:
+        print(f"Total descartadas por fora de tema: {fora_tema}")
     if repetidas:
         print(f"Total ignoradas por serem repetidas: {repetidas}")
 

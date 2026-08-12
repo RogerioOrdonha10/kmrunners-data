@@ -108,6 +108,16 @@ PROVA_CORRIDA = {
     "circuito de corrida", "km de corrida", "corrida de", "running",
     "corrida da", "corrida no", "corrida em",
 }
+# Termos INEQUÍVOCOS de outro tema: bloqueiam SEMPRE, prova de corrida
+# NÃO salva (diferente de FORA_DE_TEMA, que é liberado por PROVA_CORRIDA).
+FORA_DE_TEMA_FORTE = {
+    "filme", "filmes", "serie", "series", "netflix", "episodio",
+    "episodios", "temporada", "temporadas", "rotten", "tomatoes",
+    "trailer", "hbo", "disney", "pipoca", "wicked", "bastidores",
+    "jogador", "jogadores", "cruzeiro", "flamengo", "palmeiras",
+    "corinthians", "brasileirao", "libertadores", "intercolegial",
+    "sertanejo", "reveillon",
+}
 
 # Palavras vazias (stopwords) ignoradas na comparação de similaridade de títulos
 STOPWORDS = {
@@ -144,19 +154,20 @@ def contem_termo_bloqueado(*campos) -> bool:
 
 
 def eh_fora_de_tema(*campos) -> bool:
-    """True se o texto parecer de outro assunto (filme/futebol/música/etc.)
-    SEM prova real de corrida. 'Maratona' figurada não salva a notícia.
-
-    Regra: se houver termo de tema alheio (FORA_DE_TEMA) e NÃO houver
-    nenhuma PROVA_CORRIDA, a notícia é considerada fora de tema."""
+    """Bloqueia notícia de outro assunto.
+    - FORA_DE_TEMA_FORTE: bloqueia SEMPRE (filme/série/jogadores/etc.),
+      prova de corrida NÃO salva.
+    - FORA_DE_TEMA: bloqueia só se NÃO houver PROVA_CORRIDA."""
     texto = _normalizar(" ".join(c for c in campos if c))
     palavras = set(texto.split())
-    tem_termo_alheio = bool(palavras & FORA_DE_TEMA)
-    if not tem_termo_alheio:
-        return False  # nenhum tema alheio -> segue normal
-    # tem termo alheio: só mantém se houver prova forte de corrida
-    tem_prova = any(p in texto for p in PROVA_CORRIDA)
-    return not tem_prova  # sem prova -> fora de tema -> bloqueia
+    # nível forte: prova não salva
+    if palavras & FORA_DE_TEMA_FORTE:
+        return True
+    # nível fraco: prova de corrida libera
+    if palavras & FORA_DE_TEMA:
+        tem_prova = any(p in texto for p in PROVA_CORRIDA)
+        return not tem_prova
+    return False
 
 
 def _palavras_chave(titulo: str) -> set:

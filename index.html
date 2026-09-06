@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KM Runners — Corridas de rua, notícias e tênis num só app</title>
+<meta name="description" content="O app dos corredores brasileiros: calendário de corridas de rua, notícias do mundo da corrida e conteúdo sobre tênis. Grátis para Android e iPhone.">
+<meta property="og:title" content="KM Runners">
+<meta property="og:description" content="Calendário de corridas de rua, notícias e tênis. Grátis para Android e iPhone.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kmrunners.com.br">
+<style>
+  :root{
+    --azul:#1e3a5f;
+    --azul-claro:#2d5488;
+    --tinta:#16202e;
+    --cinza:#5b6b7f;
+    --linha:#e3e8ee;
+    --fundo:#f7f9fb;
+    --branco:#fff;
+    --max:1080px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--tinta);background:var(--branco);line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+
+  /* header */
+  header{background:var(--azul);color:#fff;padding:18px 0}
+  .topo{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .marca{display:flex;align-items:baseline;gap:7px;font-size:22px;letter-spacing:.3px}
+  .marca b{font-weight:800}
+  .marca span{font-weight:400;opacity:.92}
+  .topo a.contato{color:#cfe0f5;text-decoration:none;font-size:14px}
+  .topo a.contato:hover{color:#fff}
+
+  /* hero */
+  .hero{background:linear-gradient(180deg,var(--azul) 0%,var(--azul-claro) 100%);color:#fff;padding:64px 0 72px;text-align:center}
+  .hero h1{font-size:clamp(28px,5vw,44px);line-height:1.18;font-weight:800;letter-spacing:-.4px;max-width:16ch;margin:0 auto 16px}
+  .hero p{font-size:clamp(16px,2.2vw,19px);color:#d6e3f3;max-width:52ch;margin:0 auto 32px}
+  .lojas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;
+    background:#fff;color:var(--azul);text-decoration:none;
+    font-weight:700;font-size:15px;padding:13px 22px;border-radius:10px;
+    transition:transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 2px 10px rgba(0,0,0,.14);
+  }
+  .btn:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.2)}
+  .btn svg{flex:none}
+  .gratis{margin-top:20px;font-size:14px;color:#b9cee8}
+
+  /* seções */
+  section{padding:64px 0}
+  .secao-cinza{background:var(--fundo);border-top:1px solid var(--linha);border-bottom:1px solid var(--linha)}
+  h2{font-size:clamp(22px,3.4vw,30px);font-weight:800;letter-spacing:-.3px;margin-bottom:10px;text-align:center}
+  .sub{color:var(--cinza);text-align:center;max-width:54ch;margin:0 auto 40px}
+
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px}
+  .card{background:var(--branco);border:1px solid var(--linha);border-radius:14px;padding:26px 22px}
+  .card .ico{width:42px;height:42px;border-radius:11px;background:#eaf1fa;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .card h3{font-size:17px;font-weight:700;margin-bottom:6px}
+  .card p{color:var(--cinza);font-size:15px}
+
+  /* parceiros */
+  .parceiros{text-align:center}
+  .parceiros .caixa{
+    background:var(--branco);border:1px solid var(--linha);border-radius:16px;
+    padding:38px 28px;max-width:660px;margin:0 auto;
+  }
+  .parceiros h2{margin-bottom:12px}
+  .parceiros p{color:var(--cinza);margin-bottom:24px}
+  .btn-azul{
+    display:inline-block;background:var(--azul);color:#fff;text-decoration:none;
+    font-weight:700;font-size:15px;padding:13px 26px;border-radius:10px;
+    transition:background .15s ease;
+  }
+  .btn-azul:hover{background:var(--azul-claro)}
+
+  /* footer */
+  footer{background:var(--azul);color:#c3d5ec;padding:44px 0 32px;font-size:14px}
+  .rodape{display:flex;flex-wrap:wrap;gap:28px;justify-content:space-between;align-items:flex-start}
+  .rodape .col h4{color:#fff;font-size:14px;font-weight:700;margin-bottom:10px;letter-spacing:.2px}
+  .rodape a{color:#c3d5ec;text-decoration:none;display:block;margin-bottom:6px}
+  .rodape a:hover{color:#fff;text-decoration:underline}
+  .creditos{border-top:1px solid rgba(255,255,255,.14);margin-top:32px;padding-top:20px;text-align:center;font-size:13px;color:#9db6d4}
+
+  @media (max-width:620px){
+    .hero{padding:48px 0 56px}
+    section{padding:48px 0}
+    .btn{width:100%;justify-content:center}
+    .lojas{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap topo">
+    <div class="marca"><b>KM</b><span>RUNNERS</span></div>
+    <a class="contato" href="mailto:kmrunners@kmrunners.com.br">Fale com a gente</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <h1>Todas as corridas de rua num só lugar</h1>
+    <p>Encontre provas por cidade e distância, salve as que você vai correr, acompanhe as notícias do mundo da corrida e fique por dentro dos tênis.</p>
+    <div class="lojas">
+      <a class="btn" href="https://play.google.com/store/apps/details?id=br.com.runbr" target="_blank" rel="noopener">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.6 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l.1.1 9.3-9.3v-.2L3.6 2.3zM16.3 15.2l-3.1-3.1v-.2l3.1-3.1.1.1 3.7 2.1c1 .6 1 1.6 0 2.2l-3.7 2.1-.1-.1zM15.5 16l-3.2-3.2-9.3 9.3c.3.4.9.4 1.6.1L15.5 16M15.5 8L4.6 1.8c-.7-.4-1.3-.3-1.6.1l9.3 9.3L15.5 8z"/></svg>
+        Baixar no Google Play
+      </a>
+      <a class="btn" href="https://apps.apple.com/br/app/km-runners/id6775238694" target="_blank" rel="noopener">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.7c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.7 2.2-1.6 2.7-.4 6.8 1.1 9 .7 1.1 1.6 2.3 2.8 2.3 1.1 0 1.5-.7 2.9-.7 1.3 0 1.7.7 2.9.7 1.2 0 2-1.1 2.7-2.2.9-1.2 1.2-2.5 1.2-2.5s-2.3-.9-2.3-3.8zM14.2 6.2c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/></svg>
+        Baixar na App Store
+      </a>
+    </div>
+    <p class="gratis">Grátis · Android e iPhone</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>O que você encontra no app</h2>
+    <p class="sub">Feito por quem corre, para quem corre.</p>
+    <div class="grade">
+
+      <div class="card">
+        <div class="ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </div>
+        <h3>Busca de corridas</h3>
+        <p>Filtre por cidade e distância — de 5 km a ultramaratonas. O calendário é atualizado o tempo todo.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+        </div>
+        <h3>Minhas corridas</h3>
+        <p>Salve as provas que você vai fazer, adicione no calendário do celular e não perca nenhuma inscrição.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H6a2 2 0 0 1-2-2z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+        </div>
+        <h3>Notícias</h3>
+        <p>O que está acontecendo no mundo da corrida, reunido e atualizado todo dia.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 16.5V12.3c0-.85.6-1.58 1.44-1.74l1.3-.25c.6-.12 1.2.13 1.55.63l1.45 2.1c.32.46.79.8 1.33.95l5.2 1.45c1.75.49 3.35 1.38 4.66 2.6"/><path d="M2.6 16.5h18.9c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5H4.1c-.83 0-1.5-.67-1.5-1.5z"/></svg>
+        </div>
+        <h3>Tênis</h3>
+        <p>Lançamentos, comparações e dicas para escolher o tênis certo para o seu tipo de treino.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m20.6 13.4-7.2 7.2a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 2.8 12V4.8A2 2 0 0 1 4.8 2.8H12a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>
+        </div>
+        <h3>Vantagens</h3>
+        <p>Cupons e descontos em lojas parceiras, direto no app — é só copiar o código e usar.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0"/><path d="M12 8v4l2.5 2.5"/></svg>
+        </div>
+        <h3>Rápido e leve</h3>
+        <p>Sem cadastro obrigatório e sem complicação. Abriu, achou a corrida, salvou.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="secao-cinza parceiros">
+  <div class="wrap">
+    <div class="caixa">
+      <h2>É lojista ou organiza provas?</h2>
+      <p>O KM Runners conecta você a corredores de todo o Brasil. Divulgue seu evento no calendário ou ofereça um cupom exclusivo na aba Vantagens.</p>
+      <a class="btn-azul" href="mailto:kmrunners@kmrunners.com.br?subject=Parceria%20KM%20Runners">Falar sobre parceria</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="rodape">
+      <div class="col">
+        <h4>KM Runners</h4>
+        <p style="max-width:32ch">O app dos corredores brasileiros.<br>Corridas de rua, notícias e tênis.</p>
+      </div>
+      <div class="col">
+        <h4>Baixe o app</h4>
+        <a href="https://play.google.com/store/apps/details?id=br.com.runbr" target="_blank" rel="noopener">Google Play</a>
+        <a href="https://apps.apple.com/br/app/km-runners/id6775238694" target="_blank" rel="noopener">App Store</a>
+      </div>
+      <div class="col">
+        <h4>Contato</h4>
+        <a href="mailto:kmrunners@kmrunners.com.br">kmrunners@kmrunners.com.br</a>
+        <a href="/privacidade">Política de privacidade</a>
+      </div>
+    </div>
+    <div class="creditos">© 2026 KM Runners · Jandira, SP · Brasil</div>
+  </div>
+</footer>
+
+</body>
+</html>

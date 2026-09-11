@@ -34,9 +34,13 @@ AIRTABLE_TABLE = os.environ.get("AIRTABLE_TABLE", "Noticias")
 # IMPORTANTE: no plano free do GNews, use parênteses ao redor de grupos com OR:
 #   BOM:  (maratona OR "meia-maratona")
 #   RUIM: maratona OR meia-maratona   <- pode dar 400 Bad Request
+#
+# MUDANÇA: o tema de "maratona" agora exige contexto de corrida na PRÓPRIA busca.
+# Sem isso, o GNews devolve "maratona de campanha", "maratona de 5 sets" (tênis),
+# "maratona de doações" — que é de onde vinha a maior parte do lixo.
 TEMAS_PADRAO = [
     '"corrida de rua"',
-    '(maratona OR "meia-maratona")',
+    '(maratona OR "meia-maratona") (corrida OR corredores OR atletismo OR prova)',
     '"corrida" (treino OR "bem-estar" OR preparo)',
     '("running" OR "pace") treino',
     '"corredor" (corrida OR maratona OR atletismo OR prova)',
@@ -101,23 +105,76 @@ FORA_DE_TEMA = {
 # PROVA de que É corrida de verdade (libera a notícia mesmo com termo alheio).
 # NOTA: "maratona" sozinha NÃO entra aqui — é o gancho do uso figurado
 # ("maratona de filmes", "maratona de jogos").
+#
+# MUDANÇA: saíram "atleta", "atletas" e "corrida de".
+#   - "atleta/atletas" aparecia em notícia de TÊNIS (esporte) e LIBERAVA o bloqueio.
+#   - "corrida de" casava com "corrida eleitoral", "corrida armamentista".
+# O que sobrou é inequívoco de corrida de rua.
 PROVA_CORRIDA = {
     "corrida de rua", "meia-maratona", "meia maratona", "corredor",
-    "corredores", "atleta", "atletas", "atletismo", "largada", "largadas",
+    "corredores", "atletismo", "largada", "largadas",
     "pace", "quilometro", "quilometros", "percurso", "prova de corrida",
-    "circuito de corrida", "km de corrida", "corrida de", "running",
-    "corrida da", "corrida no", "corrida em",
+    "circuito de corrida", "km de corrida", "running",
+    "corrida da", "corrida no", "corrida em", "inscricoes para a corrida",
+    "maratona do rio", "sao silvestre", "corrida solidaria",
 }
 # Termos INEQUÍVOCOS de outro tema: bloqueiam SEMPRE, prova de corrida
 # NÃO salva (diferente de FORA_DE_TEMA, que é liberado por PROVA_CORRIDA).
 FORA_DE_TEMA_FORTE = {
+    # cinema / streaming
     "filme", "filmes", "serie", "series", "netflix", "episodio",
     "episodios", "temporada", "temporadas", "rotten", "tomatoes",
     "trailer", "hbo", "disney", "pipoca", "wicked", "bastidores",
+    # futebol / clubes
     "jogador", "jogadores", "cruzeiro", "flamengo", "palmeiras",
     "corinthians", "brasileirao", "libertadores", "intercolegial",
+    # música
     "sertanejo", "reveillon",
+    # --- NOVO: política eleitoral -------------------------------------
+    # "maratona de campanha", "agenda dos candidatos", "maratona pelo interior"
+    "candidato", "candidatos", "candidata", "candidatas", "eleitoral",
+    "eleitorais", "eleitores", "eleitorado", "votacao", "urna", "urnas",
+    "governador", "vereador", "vereadores", "senado", "camara",
+    "gdf", "tse", "tre", "partido", "coligacao", "quaest", "datafolha",
+    "ipec", "pesquisa eleitoral", "comicio", "palanque", "mandato",
+    # --- NOVO: tênis (o ESPORTE) --------------------------------------
+    # "maratona de cinco sets", "jogaço de 5 sets" — nada a ver com o app
+    "tenista", "tenistas", "sets", "tiebreak", "tie-break", "atp", "wta",
+    "wimbledon", "roland", "garros", "slam", "saque", "saques",
+    "alcaraz", "djokovic", "sinner", "nadal", "federer", "shelton",
+    "medvedev", "zverev", "tsitsipas",
+    # --- NOVO: games / streaming de jogos -----------------------------
+    "videogame", "videogames", "gameplay", "gamer", "gamers", "twitch",
+    "streamer", "console", "playstation", "xbox", "nintendo",
+    # --- NOVO: uso figurado corporativo -------------------------------
+    "hackathon", "maratona juridica", "maratona de estudos",
 }
+
+# --- NOVO: frases que bloqueiam SEMPRE (verificação por substring) ---
+# Pega os casos em que as palavras isoladas são inocentes, mas a expressão
+# inteira denuncia o uso figurado de "maratona"/"corrida".
+BLOQUEIO_FRASES = (
+    "maratona de campanha",
+    "maratona eleitoral",
+    "corrida eleitoral",
+    "corrida presidencial",
+    "corrida pela presidencia",
+    "corrida armamentista",
+    "corrida espacial",
+    "corrida do ouro",
+    "corrida contra o tempo",
+    "maratona de filmes",
+    "maratona de series",
+    "maratona de jogos",
+    "maratona de reunioes",
+    "maratona de shows",
+    "maratona de entrevistas",
+    "maratona pelo interior",
+    "maratona de trabalho",
+    "maratona de audiencias",
+    "maratona de cinco sets",
+    "maratona de 5 sets",
+)
 
 # Palavras vazias (stopwords) ignoradas na comparação de similaridade de títulos
 STOPWORDS = {
@@ -130,7 +187,6 @@ STOPWORDS = {
     "ano", "anos", "2025", "2026",
 }
 
-
 def _normalizar(texto: str) -> str:
     """Minúsculo e sem acento."""
     if not texto:
@@ -138,7 +194,6 @@ def _normalizar(texto: str) -> str:
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(c for c in texto if not unicodedata.combining(c))
     return texto.lower()
-
 
 def contem_termo_bloqueado(*campos) -> bool:
     """True se algum campo tiver termo da blacklist.
@@ -152,14 +207,17 @@ def contem_termo_bloqueado(*campos) -> bool:
         return True
     return False
 
-
 def eh_fora_de_tema(*campos) -> bool:
     """Bloqueia notícia de outro assunto.
-    - FORA_DE_TEMA_FORTE: bloqueia SEMPRE (filme/série/jogadores/etc.),
+    - BLOQUEIO_FRASES: expressão figurada inteira, bloqueia SEMPRE.
+    - FORA_DE_TEMA_FORTE: bloqueia SEMPRE (filme/série/política/tênis/games),
       prova de corrida NÃO salva.
     - FORA_DE_TEMA: bloqueia só se NÃO houver PROVA_CORRIDA."""
     texto = _normalizar(" ".join(c for c in campos if c))
     palavras = set(texto.split())
+    # nível frase: uso figurado explícito
+    if any(f in texto for f in BLOQUEIO_FRASES):
+        return True
     # nível forte: prova não salva
     if palavras & FORA_DE_TEMA_FORTE:
         return True
@@ -169,14 +227,12 @@ def eh_fora_de_tema(*campos) -> bool:
         return not tem_prova
     return False
 
-
 def _palavras_chave(titulo: str) -> set:
     """Conjunto de palavras significativas do título (sem acento, sem stopword,
     só termos com 3+ letras)."""
     texto = _normalizar(titulo)
     texto = re.sub(r"[^a-z0-9\s]", " ", texto)  # remove pontuação
     return {p for p in texto.split() if len(p) >= 3 and p not in STOPWORDS}
-
 
 def eh_repetida(titulo: str, titulos_aceitos: list) -> bool:
     """True se o título for muito parecido com algum já aceito.
@@ -193,13 +249,11 @@ def eh_repetida(titulo: str, titulos_aceitos: list) -> bool:
             return True
     return False
 
-
 AIRTABLE_URL = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE}"
 HEADERS = {
     "Authorization": f"Bearer {AIRTABLE_TOKEN}",
     "Content-Type": "application/json",
 }
-
 
 def buscar_gnews(query: str) -> list:
     """Busca notícias em português/Brasil no GNews.
@@ -220,7 +274,6 @@ def buscar_gnews(query: str) -> list:
         r.raise_for_status()
     return r.json().get("articles", [])
 
-
 def listar_registros_airtable() -> list:
     """Lista todos os registros atuais (id, link, data) para deduplicar/limpar."""
     registros = []
@@ -236,7 +289,6 @@ def listar_registros_airtable() -> list:
         params["offset"] = offset
     return registros
 
-
 def criar_registros(novos: list):
     """Cria registros em lotes de 10 (limite do Airtable)."""
     for i in range(0, len(novos), 10):
@@ -244,7 +296,6 @@ def criar_registros(novos: list):
         payload = {"records": [{"fields": f} for f in lote]}
         r = requests.post(AIRTABLE_URL, headers=HEADERS, json=payload, timeout=30)
         r.raise_for_status()
-
 
 def apagar_registros(ids: list):
     """Apaga registros em lotes de 10."""
@@ -254,7 +305,6 @@ def apagar_registros(ids: list):
         r = requests.delete(AIRTABLE_URL, headers=HEADERS, params=params, timeout=30)
         r.raise_for_status()
 
-
 def _data_registro(reg: dict):
     """Retorna a data (date) do registro, ou None se inválida/vazia."""
     data_str = (reg.get("fields", {}).get("data", "") or "")[:10]
@@ -262,7 +312,6 @@ def _data_registro(reg: dict):
         return datetime.strptime(data_str, "%Y-%m-%d").date()
     except ValueError:
         return None
-
 
 def main():
     existentes = listar_registros_airtable()
@@ -298,7 +347,7 @@ def main():
                 bloqueadas += 1
                 print(f"[BLOQUEADA] {titulo[:70]}")
                 continue
-            # 1b) descarta notícia de outro tema (filme/futebol) sem prova de corrida
+            # 1b) descarta notícia de outro tema (filme/futebol/política/tênis) sem prova de corrida
             if eh_fora_de_tema(titulo, descricao):
                 fora_tema += 1
                 print(f"[FORA-TEMA] {titulo[:70]}")
@@ -366,7 +415,6 @@ def main():
         print(f"Removidos {len(ids_apagar)} registros (idade + teto).")
     else:
         print("Nada a remover.")
-
 
 if __name__ == "__main__":
     main()

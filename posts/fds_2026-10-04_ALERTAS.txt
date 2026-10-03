@@ -1,0 +1,26 @@
+DUPLICATA      | corrida dos bancarios | aracaju | 5km | Setembro / 2027 | ids: ['rec7pRy15ufiulGtl', 'reciZhJGjU2M1K5K8']
+DUPLICATA      | corrida da enfermagem | sao paulo | 5km | Maio / 2027 | ids: [4, 165]
+DUPLICATA      | corrida live run | sao paulo | 10km | Setembro / 2027 | ids: [230, 55]
+DUPLICATA      | blue run | sao paulo | 10km | Julho/2027 | ids: [681, 29]
+DUPLICATA      | blue run porto saude | sao paulo | 10km | Julho/2027 | ids: [429, 430]
+DUPLICATA      | meia maratona recife | recife | 21km | 07/03/2027 | ids: ['recEdUe0L5B79JtSd', 'rech1sQRWtdNMiAHc']
+DUPLICATA      | corrida live run | sao paulo | 5km | Julho/2027 | ids: [25, 204]
+DUPLICATA      | corrida outlet premium | itupeva | 10km | 18/10/2026 | ids: [417, 416]
+DUPLICATA      | meia maratona | piracicaba | 5km | 13/12/2026 | ids: ['recM4mXQmGVZh9L6d', 'recsXPi2IZtwl6Ls3']
+DUPLICATA      | hoka speed run | manaus | 10km | 17/10/2026 | ids: ['recMfTsl5qWgWhWsz', 'recdEXXvVamWdqlso']
+DUPLICATA      | meia maratona | piracicaba | 21km | 13/12/2026 | ids: ['recN9d8wJ63jkfoRv', 'recRJsqFmAKfYMmHK']
+DUPLICATA      | corrida dos bancarios | aracaju | 10km | Setembro / 2027 | ids: ['recTwwSlbk6HbX4j3', 'recbEdPYzi0RBTu1f']
+DUPLICATA      | meia maratona recife | recife | 10km | 07/03/2027 | ids: ['recVIYmkCckpeklFA', 'recrU4l9kSlsnJLRD']
+DUPLICATA      | corrida gp brasil | salvador | 15km | 06/12/2026 | ids: [777, 775]
+DUPLICATA      | meia maratona recife | recife | 5km | 07/03/2027 | ids: ['recZoNsl0ntE8KhDe', 'recrtziYgWWy1ILt3']
+DUPLICATA      | corrida live run | sao paulo | 5km | Agosto / 2027 | ids: [42, 218]
+DUPLICATA      | meia maratona | piracicaba | 10km | 13/12/2026 | ids: ['recssM4yzmNecvciW', 'recuD4tjkfBBqQLif']
+
+--- DATAS PARCIAIS (não são erro): 738 registros ---
+DATA PARCIAL   | 'Agosto / 2027' | 260 registros
+DATA PARCIAL   | 'Setembro / 2027' | 212 registros
+DATA PARCIAL   | 'Julho/2027' | 152 registros
+DATA PARCIAL   | 'Junho / 2027' | 57 registros
+DATA PARCIAL   | 'Maio / 2027' | 51 registros
+DATA PARCIAL   | 'Abril /2027' | 4 registros
+DATA PARCIAL   | '2027' | 2 registros

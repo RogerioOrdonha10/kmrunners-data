@@ -9,6 +9,9 @@ provas mais relevantes e escreve em posts/:
     fds_<AAAA-MM-DD>.txt      legenda pronta para colar
     fds_<AAAA-MM-DD>_ALERTAS.txt   erros de dado detectados (se houver)
 
+Se o fim de semana tiver menos de MIN_PROVAS provas, a janela é ampliada
+automaticamente para os fins de semana seguintes e a arte vira "PRÓXIMAS PROVAS".
+
 Variáveis de ambiente:
   AIRTABLE_TOKEN            Personal Access Token (pat...)   [obrigatória]
   AIRTABLE_BASE_ID          ex: appmRv32Vt5S1UfbY            [obrigatória]
@@ -52,10 +55,15 @@ OURO = (255, 199, 88)
 CIDADE_COR = (122, 160, 202)
 
 MAX_LINHAS = 13          # total de provas exibidas na arte
+MIN_PROVAS = 4           # abaixo disso, amplia a janela
+MAX_FINS_DE_SEMANA = 3   # teto da ampliação
 ANO_MIN, ANO_MAX = 2025, 2030
 
 MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
          "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun",
+               "jul", "ago", "set", "out", "nov", "dez"]
+DIAS_SEMANA = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]
 
 
 # ----------------------------------------------------------------------------
@@ -80,11 +88,12 @@ def fonte(peso: str, tamanho: int):
     return f
 
 
-BK = lambda s: fonte("Black", s)
-XB = lambda s: fonte("ExtraBold", s)
-SB = lambda s: fonte("SemiBold", s)
-MD = lambda s: fonte("Medium", s)
-RG = lambda s: fonte("Regular", s)
+RG = lambda t: fonte("Regular", t)
+MD = lambda t: fonte("Medium", t)
+SB = lambda t: fonte("SemiBold", t)
+BD = lambda t: fonte("Bold", t)
+XB = lambda t: fonte("ExtraBold", t)
+BK = lambda t: fonte("Black", t)
 
 
 # ----------------------------------------------------------------------------
@@ -126,6 +135,28 @@ def parse_data(valor) -> date | None:
             return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
         except ValueError:
             return None
+    return None
+
+
+def parse_data_parcial(valor) -> tuple | None:
+    """Reconhece data incompleta mas legítima: 'Agosto / 2027', '08/2027', '2027'.
+
+    Devolve (ano, mes_ou_None). Serve só para NÃO tratar esses casos como erro.
+    """
+    if not valor:
+        return None
+    texto = _norm(str(valor)).replace(" de ", " ")
+    texto = re.sub(r"\s*/\s*", "/", texto).strip()
+
+    m = re.match(r"^([a-z]+)[/\s]+(\d{4})$", texto)
+    if m and m.group(1) in [_norm(x) for x in MESES]:
+        return int(m.group(2)), [_norm(x) for x in MESES].index(m.group(1)) + 1
+    m = re.match(r"^(\d{1,2})/(\d{4})$", texto)
+    if m and 1 <= int(m.group(1)) <= 12:
+        return int(m.group(2)), int(m.group(1))
+    m = re.match(r"^(\d{4})$", texto)
+    if m and ANO_MIN <= int(m.group(1)) <= ANO_MAX:
+        return int(m.group(1)), None
     return None
 
 
@@ -204,10 +235,32 @@ def texto_kms(item: dict) -> str:
 
 
 # ----------------------------------------------------------------------------
+# Janela: um fim de semana, ou vários se o primeiro estiver vazio
+# ----------------------------------------------------------------------------
+def montar_janela(registros: list, sabado: date) -> tuple:
+    """Devolve (dias, provas_por_dia, ampliada).
+
+    Começa com sábado+domingo. Se o total ficar abaixo de MIN_PROVAS, inclui
+    os fins de semana seguintes, até MAX_FINS_DE_SEMANA.
+    """
+    dias, por_dia, total = [], {}, 0
+    for n in range(MAX_FINS_DE_SEMANA):
+        sab = sabado + timedelta(days=7 * n)
+        for dia in (sab, sab + timedelta(days=1)):
+            provas = sorted(agrupar(registros, dia), key=pontuar, reverse=True)
+            dias.append(dia)
+            por_dia[dia] = provas
+            total += sum(len(i["cidades"]) or 1 for i in provas)
+        if total >= MIN_PROVAS:
+            return dias, por_dia, n > 0
+    return dias, por_dia, True
+
+
+# ----------------------------------------------------------------------------
 # Alertas de qualidade de dado
 # ----------------------------------------------------------------------------
 def detectar_alertas(registros: list) -> list:
-    alertas = []
+    alertas, parciais = [], defaultdict(int)
     vistos = defaultdict(list)
     for reg in registros:
         f = reg.get("fields", {})
@@ -215,7 +268,10 @@ def detectar_alertas(registros: list) -> list:
         dt = parse_data(bruto)
         nome = (f.get("nome") or "").strip()
         if bruto and dt is None:
-            alertas.append(f"DATA ILEGÍVEL  | {nome} | valor: {bruto!r}")
+            if parse_data_parcial(bruto):
+                parciais[str(bruto).strip()] += 1      # legítimo: mês/ano
+            else:
+                alertas.append(f"DATA ILEGÍVEL  | {nome} | valor: {bruto!r}")
         elif dt and not (ANO_MIN <= dt.year <= ANO_MAX):
             alertas.append(f"ANO SUSPEITO   | {nome} | {bruto}")
         chave = (_norm(nome), _norm(f.get("cidade")), str(f.get("km")), str(bruto))
@@ -224,6 +280,12 @@ def detectar_alertas(registros: list) -> list:
         if len(ids) > 1 and chave[0]:
             alertas.append(f"DUPLICATA      | {chave[0]} | {chave[1]} | "
                            f"{chave[2]}km | {chave[3]} | ids: {ids}")
+    if parciais:
+        total = sum(parciais.values())
+        alertas.append("")
+        alertas.append(f"--- DATAS PARCIAIS (não são erro): {total} registros ---")
+        for valor, n in sorted(parciais.items(), key=lambda x: -x[1]):
+            alertas.append(f"DATA PARCIAL   | {valor!r} | {n} registros")
     return alertas
 
 
@@ -241,24 +303,46 @@ def centro(d, y, txt, f, cor=BRANCO, esp=0):
         x += d.textlength(c, font=f) + esp
 
 
-def montar_arte(sabado, domingo, destaque, lista_sab, lista_dom, total, caminho):
+def texto_periodo(dias: list) -> str:
+    ini, fim = dias[0], dias[-1]
+    if ini.month == fim.month:
+        return f"{ini.day} A {fim.day} DE {MESES[ini.month-1].upper()}"
+    return (f"{ini.day} DE {MESES[ini.month-1].upper()} A "
+            f"{fim.day} DE {MESES[fim.month-1].upper()}")
+
+
+def montar_arte(dias, ampliada, destaque, blocos, total, caminho):
     base = Image.new("RGB", (W, H), AZUL)
     g = Image.new("RGB", (W, H), AZUL)
     ImageDraw.Draw(g).ellipse([-320, -760, W + 320, 400], fill=(46, 84, 130))
     im = Image.blend(base, g.filter(ImageFilter.GaussianBlur(180)), 0.60)
     d = ImageDraw.Draw(im)
 
-    mes_txt = MESES[sabado.month - 1].upper()
-    if sabado.month != domingo.month:
-        periodo = (f"{sabado.day} DE {MESES[sabado.month-1].upper()} E "
-                   f"{domingo.day} DE {MESES[domingo.month-1].upper()}")
+    if ampliada:
+        titulo, periodo = "PRÓXIMAS PROVAS", texto_periodo(dias)
     else:
-        periodo = f"{sabado.day} E {domingo.day} DE {mes_txt}"
+        sab, dom = dias[0], dias[1]
+        titulo = "FIM DE SEMANA"
+        if sab.month != dom.month:
+            periodo = (f"{sab.day} DE {MESES[sab.month-1].upper()} E "
+                       f"{dom.day} DE {MESES[dom.month-1].upper()}")
+        else:
+            periodo = f"{sab.day} E {dom.day} DE {MESES[sab.month-1].upper()}"
 
-    centro(d, 52, "FIM DE SEMANA", BK(62), BRANCO, esp=2)
+    centro(d, 52, titulo, BK(62), BRANCO, esp=2)
     centro(d, 128, periodo, XB(34), OURO)
     centro(d, 176, "as provas pelo Brasil", MD(26), CLARO)
     d.line([(W / 2 - 170, 218), (W / 2 + 170, 218)], fill=OURO, width=4)
+
+    # espaçamento adaptativo: pouca prova => linhas mais altas, sem buraco
+    n_itens = sum(len(p) for _, p in blocos) + (1 if destaque else 0)
+    n_blocos = len(blocos)
+    altura_util = (H - 176 - 30) - 248
+    base_itens = n_itens * 50 + n_blocos * 56
+    folga = max(0, altura_util - base_itens - (142 if destaque else 0))
+    extra = min(34, folga // max(n_itens, 1)) if n_itens <= 7 else 0
+    passo = 50 + extra
+    gap_bloco = 12 + extra
 
     y = 248
     if destaque:
@@ -274,13 +358,11 @@ def montar_arte(sabado, domingo, destaque, lista_sab, lista_dom, total, caminho)
         d.text((W - 96 - tw, y + 62), km, font=XB(26), fill=OURO)
         y += 116 + 26
 
-    blocos = [(f"SÁBADO  {sabado:%d/%m}", lista_sab),
-              (f"DOMINGO  {domingo:%d/%m}", lista_dom)]
-    for titulo, provas in blocos:
+    for rotulo_bloco, provas in blocos:
         if not provas:
             continue
-        d.text((70, y), titulo, font=BK(25), fill=CLARO)
-        d.line([(70 + d.textlength(titulo, font=BK(25)) + 20, y + 15),
+        d.text((70, y), rotulo_bloco, font=BK(25), fill=CLARO)
+        d.line([(70 + d.textlength(rotulo_bloco, font=BK(25)) + 20, y + 15),
                 (W - 70, y + 15)], fill=LINHA, width=2)
         y += 44
         for item in provas:
@@ -289,12 +371,16 @@ def montar_arte(sabado, domingo, destaque, lista_sab, lista_dom, total, caminho)
             km = texto_kms(item)
             tw = d.textlength(km, font=XB(23))
             d.text((W - 70 - tw, y + 6), km, font=XB(23), fill=BRANCO)
-            y += 50
-        y += 12
+            y += passo
+        y += gap_bloco
 
     ry = H - 176
     d.rounded_rectangle([64, ry, W - 64, H - 30], 22, fill=BRANCO)
-    centro(d, ry + 16, f"SÃO {total} PROVAS NESTE FIM DE SEMANA", BK(30), AZUL)
+    if ampliada:
+        rodape = f"SÃO {total} PROVAS NAS PRÓXIMAS SEMANAS"
+    else:
+        rodape = f"SÃO {total} PROVAS NESTE FIM DE SEMANA"
+    centro(d, ry + 16, rodape, BK(30 if len(rodape) <= 34 else 26), AZUL)
     centro(d, ry + 60, "veja todas no app — e as dos próximos meses",
            MD(22), (86, 110, 140))
     centro(d, ry + 96, "KMRUNNERS.COM.BR", XB(28), AZUL)
@@ -302,22 +388,31 @@ def montar_arte(sabado, domingo, destaque, lista_sab, lista_dom, total, caminho)
     im.save(caminho, quality=95)
 
 
-def montar_legenda(sabado, domingo, destaque, lista_sab, lista_dom, total, exibidas):
+# ----------------------------------------------------------------------------
+# Legenda
+# ----------------------------------------------------------------------------
+def montar_legenda(dias, ampliada, destaque, blocos, total, exibidas):
+    itens = [i for _, provas in blocos for i in provas]
     cidades = []
-    for item in lista_sab + lista_dom:
+    for item in itens:
         for c in item["cidades"]:
             nome_cidade = c.split("/")[0]
             if nome_cidade not in cidades:
                 cidades.append(nome_cidade)
-    mostradas = sum(len(i["cidades"]) or 1 for i in lista_sab + lista_dom)
+    mostradas = sum(len(i["cidades"]) or 1 for i in itens)
     if destaque:
         mostradas += len(destaque[0]["cidades"]) or 1
     restantes = max(total - mostradas, 0)
-    linhas = [
-        f"🏃 As provas deste fim de semana pelo Brasil — "
-        f"{sabado.day} e {domingo.day} de {MESES[domingo.month-1]}",
-        "",
-    ]
+
+    ini, fim = dias[0], dias[-1]
+    if ampliada:
+        cabecalho = (f"🏃 As próximas provas pelo Brasil — de {ini.day}/{ini.month:02d} "
+                     f"a {fim.day}/{fim.month:02d}")
+    else:
+        cabecalho = (f"🏃 As provas deste fim de semana pelo Brasil — "
+                     f"{ini.day} e {fim.day} de {MESES[fim.month-1]}")
+
+    linhas = [cabecalho, ""]
     if destaque:
         item, rotulo, _ = destaque
         linhas.append(f"Destaque para a {item['nome']} — {rotulo.lower()}.")
@@ -354,47 +449,56 @@ def main():
     sabado, domingo = proximo_fim_de_semana(date.today())
     print(f"[fds] sábado {sabado:%d/%m/%Y} · domingo {domingo:%d/%m/%Y}")
 
-    sab = sorted(agrupar(registros, sabado), key=pontuar, reverse=True)
-    dom = sorted(agrupar(registros, domingo), key=pontuar, reverse=True)
-    total = sum(len(i["cidades"]) or 1 for i in sab + dom)
-    print(f"[fds] {len(sab)} provas no sábado, {len(dom)} no domingo (total {total})")
+    dias, por_dia, ampliada = montar_janela(registros, sabado)
+    dias = [dia for dia in dias if por_dia[dia]] or dias[:2]
+    total = sum(sum(len(i["cidades"]) or 1 for i in por_dia[dia]) for dia in dias)
+    print(f"[fds] janela {dias[0]:%d/%m} a {dias[-1]:%d/%m} · "
+          f"{total} provas · ampliada={ampliada}")
 
     if total == 0:
-        print("[fds] nenhuma prova no fim de semana — nada a publicar.")
+        print("[fds] nenhuma prova na janela — nada a publicar.")
         return
 
-    # destaque: a prova mais forte do fim de semana
+    # destaque: a prova mais forte da janela
     destaque = None
-    candidatos = [(i, "domingo") for i in dom] + [(i, "sábado") for i in sab]
+    candidatos = [(i, dia) for dia in dias for i in por_dia[dia]]
     if candidatos:
-        melhor, dia_txt = max(candidatos, key=lambda x: pontuar(x[0]))
-        if 42 in melhor["kms"]:
-            rotulo = "A MARATONA DO FIM DE SEMANA"
-        elif 21 in melhor["kms"]:
-            rotulo = "DESTAQUE DO FIM DE SEMANA"
+        melhor, dia_melhor = max(candidatos, key=lambda x: pontuar(x[0]))
+        rotulo = ("A MARATONA DA SEMANA" if 42 in melhor["kms"]
+                  else "DESTAQUE DO FIM DE SEMANA")
+        if ampliada:
+            dia_txt = f"{DIAS_SEMANA[dia_melhor.weekday()].lower()} {dia_melhor:%d/%m}"
         else:
-            rotulo = "DESTAQUE DO FIM DE SEMANA"
+            dia_txt = "sábado" if dia_melhor.weekday() == 5 else "domingo"
         destaque = (melhor, rotulo, dia_txt)
-        if dia_txt == "sábado":
-            sab = [i for i in sab if i is not melhor]
-        else:
-            dom = [i for i in dom if i is not melhor]
+        por_dia[dia_melhor] = [i for i in por_dia[dia_melhor] if i is not melhor]
 
-    # divide as linhas disponíveis proporcionalmente entre os dois dias
+    # distribui as linhas disponíveis entre os dias, começando pelos mais cheios
     restante = MAX_LINHAS
-    cota_sab = min(len(sab), max(1, round(restante * len(sab) / max(len(sab) + len(dom), 1))))
-    lista_sab = sab[:cota_sab]
-    lista_dom = dom[:restante - len(lista_sab)]
-    exibidas = len(lista_sab) + len(lista_dom) + (1 if destaque else 0)
+    escolhidas = {}
+    for dia in sorted(dias, key=lambda x: -len(por_dia[x])):
+        cota = max(1, round(MAX_LINHAS * len(por_dia[dia]) /
+                            max(sum(len(por_dia[x]) for x in dias), 1)))
+        escolhidas[dia] = por_dia[dia][:min(cota, restante)]
+        restante -= len(escolhidas[dia])
 
-    marca = f"{sabado:%Y-%m-%d}"
+    blocos = []
+    for dia in dias:
+        provas = escolhidas.get(dia) or []
+        if not provas:
+            continue
+        rotulo_bloco = f"{DIAS_SEMANA[dia.weekday()]}  {dia:%d/%m}"
+        blocos.append((rotulo_bloco, provas))
+
+    exibidas = sum(len(p) for _, p in blocos) + (1 if destaque else 0)
+
+    marca = f"{dias[0]:%Y-%m-%d}"
     png = os.path.join(PASTA_SAIDA, f"fds_{marca}.png")
     txt = os.path.join(PASTA_SAIDA, f"fds_{marca}.txt")
 
-    montar_arte(sabado, domingo, destaque, lista_sab, lista_dom, total, png)
+    montar_arte(dias, ampliada, destaque, blocos, total, png)
     with open(txt, "w", encoding="utf-8") as f:
-        f.write(montar_legenda(sabado, domingo, destaque,
-                               lista_sab, lista_dom, total, exibidas))
+        f.write(montar_legenda(dias, ampliada, destaque, blocos, total, exibidas))
     print(f"[arte] {png}")
     print(f"[legenda] {txt}")
 
@@ -403,7 +507,10 @@ def main():
         cam = os.path.join(PASTA_SAIDA, f"fds_{marca}_ALERTAS.txt")
         with open(cam, "w", encoding="utf-8") as f:
             f.write("\n".join(alertas))
-        print(f"[alertas] {len(alertas)} problemas de dado -> {cam}")
+        reais = sum(1 for a in alertas if a.startswith(("DATA ILEGÍVEL",
+                                                        "ANO SUSPEITO",
+                                                        "DUPLICATA")))
+        print(f"[alertas] {reais} problemas reais de dado -> {cam}")
     else:
         print("[alertas] nenhum problema de dado detectado")
 

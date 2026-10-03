@@ -1,0 +1,58 @@
+name: Post do fim de semana
+
+on:
+  schedule:
+    # Toda segunda-feira às 09:00 de Brasília (12:00 UTC)
+    - cron: '0 12 * * 1'
+  workflow_dispatch:
+    inputs:
+      dias_a_frente:
+        description: 'Dias a somar antes de achar o fim de semana (0 = o próximo)'
+        required: false
+        default: '0'
+
+permissions:
+  contents: write
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: pip install --quiet requests pillow
+
+      - name: Gerar a arte e a legenda
+        env:
+          AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          AIRTABLE_TABLE_EVENTOS: Eventos
+          DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente || '0' }}
+        run: python scripts/post_fim_de_semana.py
+
+      - name: Publicar os arquivos no repositório
+        run: |
+          git config user.name  "km-runners-bot"
+          git config user.email "bot@kmrunners.com.br"
+          git add posts/
+          if git diff --staged --quiet; then
+            echo "Nada novo para publicar."
+          else
+            git commit -m "post do fim de semana gerado automaticamente"
+            git push
+          fi
+
+      - name: Anexar a arte ao resumo da execução
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-fim-de-semana
+          path: posts/
+          if-no-files-found: ignore

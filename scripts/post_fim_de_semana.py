@@ -432,7 +432,7 @@ def montar_legenda(dias, ampliada, destaque, blocos, total, exibidas):
         + " junto com 1.300+ provas de todo o Brasil."
         " Filtra por cidade, distância e mês. Grátis, sem cadastro.",
         "",
-        "🔗 kmrunners.com.br",
+        "🔗 Link na bio — ou busque KM Runners na sua loja de apps.",
         "",
         "#corridaderua #maratona #meiamaratona #corrida #running #corredores"
         " #fimdesemana #calendariodecorridas #10k #21k #42k",

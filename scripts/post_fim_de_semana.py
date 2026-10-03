@@ -421,7 +421,11 @@ def montar_legenda(dias, ampliada, destaque, blocos, total, exibidas):
         linhas.append("Tem prova em " + ", ".join(cidades[:6]) + ".")
         linhas.append("")
     linhas += [
-        "📌 Salva e manda pro seu grupo de treino.",
+        "📅 Salve suas provas favoritas no KM Runners. Elas ficam armazenadas"
+        " no app e podem ser adicionadas ao seu calendário, para você não perder"
+        " nenhuma data importante nem o prazo de inscrição.",
+        "",
+        "📲 Manda pro seu grupo de treino.",
         "",
         f"São {total} provas no total"
         + (f" — as outras {restantes} estão no app," if restantes else ",")

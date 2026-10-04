@@ -303,6 +303,22 @@ def centro(d, y, txt, f, cor=BRANCO, esp=0):
         x += d.textlength(c, font=f) + esp
 
 
+def cabecalho_arte(dias: list, sabado, domingo, ampliada) -> tuple:
+    """Título e período da arte. Usa sábado/domingo reais, não a lista filtrada."""
+    if ampliada:
+        return "PRÓXIMAS PROVAS", texto_periodo(dias)
+    if len(dias) == 1:
+        dia = dias[0]
+        nome = "SÁBADO" if dia.weekday() == 5 else "DOMINGO"
+        return nome, f"{dia.day} DE {MESES[dia.month-1].upper()}"
+    if sabado.month != domingo.month:
+        p = (f"{sabado.day} DE {MESES[sabado.month-1].upper()} E "
+             f"{domingo.day} DE {MESES[domingo.month-1].upper()}")
+    else:
+        p = f"{sabado.day} E {domingo.day} DE {MESES[sabado.month-1].upper()}"
+    return "FIM DE SEMANA", p
+
+
 def texto_periodo(dias: list) -> str:
     ini, fim = dias[0], dias[-1]
     if ini.month == fim.month:
@@ -311,23 +327,12 @@ def texto_periodo(dias: list) -> str:
             f"{fim.day} DE {MESES[fim.month-1].upper()}")
 
 
-def montar_arte(dias, ampliada, destaque, blocos, total, caminho):
+def montar_arte(titulo, periodo, ampliada, destaque, blocos, total, caminho):
     base = Image.new("RGB", (W, H), AZUL)
     g = Image.new("RGB", (W, H), AZUL)
     ImageDraw.Draw(g).ellipse([-320, -760, W + 320, 400], fill=(46, 84, 130))
     im = Image.blend(base, g.filter(ImageFilter.GaussianBlur(180)), 0.60)
     d = ImageDraw.Draw(im)
-
-    if ampliada:
-        titulo, periodo = "PRÓXIMAS PROVAS", texto_periodo(dias)
-    else:
-        sab, dom = dias[0], dias[1]
-        titulo = "FIM DE SEMANA"
-        if sab.month != dom.month:
-            periodo = (f"{sab.day} DE {MESES[sab.month-1].upper()} E "
-                       f"{dom.day} DE {MESES[dom.month-1].upper()}")
-        else:
-            periodo = f"{sab.day} E {dom.day} DE {MESES[sab.month-1].upper()}"
 
     centro(d, 52, titulo, BK(62), BRANCO, esp=2)
     centro(d, 128, periodo, XB(34), OURO)
@@ -391,14 +396,36 @@ def montar_arte(dias, ampliada, destaque, blocos, total, caminho):
 # ----------------------------------------------------------------------------
 # Legenda
 # ----------------------------------------------------------------------------
-def montar_legenda(dias, ampliada, destaque, blocos, total, exibidas):
+def contar_provas_na_base(registros: list) -> int:
+    """Provas distintas (nome + cidade), não linhas de distância."""
+    vistos = set()
+    for reg in registros:
+        f = reg.get("fields", {})
+        nome = _norm(f.get("nome"))
+        if nome:
+            vistos.add((nome, _norm(f.get("cidade"))))
+    return len(vistos)
+
+
+def montar_legenda(dias, ampliada, destaque, blocos, total, exibidas, base=None):
     itens = [i for _, provas in blocos for i in provas]
-    cidades = []
+    if destaque:
+        itens = [destaque[0]] + itens
+    por_uf, ordem_uf = defaultdict(list), []
     for item in itens:
         for c in item["cidades"]:
-            nome_cidade = c.split("/")[0]
-            if nome_cidade not in cidades:
-                cidades.append(nome_cidade)
+            nome_cidade, _, uf = c.partition("/")
+            if nome_cidade not in por_uf[uf]:
+                por_uf[uf].append(nome_cidade)
+            if uf not in ordem_uf:
+                ordem_uf.append(uf)
+    cidades, rodada = [], 0           # 1 cidade por estado antes de repetir estado
+    while len(cidades) < 6 and any(len(por_uf[u]) > rodada for u in ordem_uf):
+        for uf in ordem_uf:
+            if len(por_uf[uf]) > rodada and len(cidades) < 6:
+                cidades.append(por_uf[uf][rodada])
+        rodada += 1
+    total_cidades = sum(len(v) for v in por_uf.values())
     mostradas = sum(len(i["cidades"]) or 1 for i in itens)
     if destaque:
         mostradas += len(destaque[0]["cidades"]) or 1
@@ -414,11 +441,13 @@ def montar_legenda(dias, ampliada, destaque, blocos, total, exibidas):
 
     linhas = [cabecalho, ""]
     if destaque:
-        item, rotulo, _ = destaque
-        linhas.append(f"Destaque para a {item['nome']} — {rotulo.lower()}.")
+        item, _, dia_txt = destaque
+        linhas.append(f"Destaque para a {item['nome']}, em "
+                      f"{texto_cidades(item)} ({dia_txt}).")
         linhas.append("")
     if cidades:
-        linhas.append("Tem prova em " + ", ".join(cidades[:6]) + ".")
+        sufixo = " e mais." if total_cidades > len(cidades) else "."
+        linhas.append("Tem prova em " + ", ".join(cidades) + sufixo)
         linhas.append("")
     linhas += [
         "📅 Salve suas provas favoritas no KM Runners. Elas ficam armazenadas"
@@ -429,8 +458,9 @@ def montar_legenda(dias, ampliada, destaque, blocos, total, exibidas):
         "",
         f"São {total} provas no total"
         + (f" — as outras {restantes} estão no app," if restantes else ",")
-        + " junto com 1.300+ provas de todo o Brasil."
-        " Filtra por cidade, distância e mês. Grátis, sem cadastro.",
+        + (f" junto com {base}+ provas de todo o Brasil."
+           if base else " junto com as provas de todo o Brasil.")
+        + " Filtra por cidade, distância e mês. Grátis, sem cadastro.",
         "",
         "🔗 Link na bio — ou busque KM Runners na sua loja de apps.",
         "",
@@ -468,8 +498,12 @@ def main():
     candidatos = [(i, dia) for dia in dias for i in por_dia[dia]]
     if candidatos:
         melhor, dia_melhor = max(candidatos, key=lambda x: pontuar(x[0]))
-        rotulo = ("A MARATONA DA SEMANA" if 42 in melhor["kms"]
-                  else "DESTAQUE DO FIM DE SEMANA")
+        if 42 in melhor["kms"]:
+            rotulo = "MARATONA EM DESTAQUE"
+        elif ampliada:
+            rotulo = "DESTAQUE DA SEMANA"
+        else:
+            rotulo = "DESTAQUE DO FIM DE SEMANA"
         if ampliada:
             dia_txt = f"{DIAS_SEMANA[dia_melhor.weekday()].lower()} {dia_melhor:%d/%m}"
         else:
@@ -483,7 +517,7 @@ def main():
     for dia in sorted(dias, key=lambda x: -len(por_dia[x])):
         cota = max(1, round(MAX_LINHAS * len(por_dia[dia]) /
                             max(sum(len(por_dia[x]) for x in dias), 1)))
-        escolhidas[dia] = por_dia[dia][:min(cota, restante)]
+        escolhidas[dia] = por_dia[dia][:max(0, min(cota, restante))]
         restante -= len(escolhidas[dia])
 
     blocos = []
@@ -500,9 +534,12 @@ def main():
     png = os.path.join(PASTA_SAIDA, f"fds_{marca}.png")
     txt = os.path.join(PASTA_SAIDA, f"fds_{marca}.txt")
 
-    montar_arte(dias, ampliada, destaque, blocos, total, png)
+    titulo, periodo = cabecalho_arte(dias, sabado, domingo, ampliada)
+    base = (contar_provas_na_base(registros) // 50) * 50
+    montar_arte(titulo, periodo, ampliada, destaque, blocos, total, png)
     with open(txt, "w", encoding="utf-8") as f:
-        f.write(montar_legenda(dias, ampliada, destaque, blocos, total, exibidas))
+        f.write(montar_legenda(dias, ampliada, destaque, blocos,
+                               total, exibidas, base))
     print(f"[arte] {png}")
     print(f"[legenda] {txt}")
 

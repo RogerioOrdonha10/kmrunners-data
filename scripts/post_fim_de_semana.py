@@ -35,6 +35,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 AIRTABLE_TOKEN = os.environ["AIRTABLE_TOKEN"]
 AIRTABLE_BASE_ID = os.environ["AIRTABLE_BASE_ID"]
 AIRTABLE_TABLE = os.environ.get("AIRTABLE_TABLE_EVENTOS", "Eventos")
+# opcional: id tecnico da tabela (tbl...), usado so para montar o link
+AIRTABLE_TABLE_ID = os.environ.get("AIRTABLE_TABLE_ID", "tblqjvIf09EMJgzN7")
 DIAS_A_FRENTE = int(os.environ.get("DIAS_A_FRENTE", "0"))
 
 AIRTABLE_URL = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE}"
@@ -259,6 +261,13 @@ def montar_janela(registros: list, sabado: date) -> tuple:
 # ----------------------------------------------------------------------------
 # Alertas de qualidade de dado
 # ----------------------------------------------------------------------------
+def link_registro(rec_id) -> str:
+    """URL direta do registro no Airtable. Abre a linha exata, sem ambiguidade."""
+    if not rec_id:
+        return "(sem record id)"
+    return f"https://airtable.com/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE_ID or AIRTABLE_TABLE}/{rec_id}"
+
+
 def detectar_alertas(registros: list) -> list:
     alertas, parciais = [], defaultdict(int)
     vistos = defaultdict(list)
@@ -275,11 +284,17 @@ def detectar_alertas(registros: list) -> list:
         elif dt and not (ANO_MIN <= dt.year <= ANO_MAX):
             alertas.append(f"ANO SUSPEITO   | {nome} | {bruto}")
         chave = (_norm(nome), _norm(f.get("cidade")), str(f.get("km")), str(bruto))
-        vistos[chave].append(f.get("id") or reg.get("id"))
-    for chave, ids in vistos.items():
-        if len(ids) > 1 and chave[0]:
+        # guarda o record id do Airtable (rec...) e tambem o campo "id" da base.
+        # Sao identificadores diferentes, e NENHUM dos dois e a posicao da linha
+        # na grade (a coluna cinza da esquerda). Por isso imprimimos o link.
+        vistos[chave].append((reg.get("id"), f.get("id")))
+    for chave, refs in vistos.items():
+        if len(refs) > 1 and chave[0]:
             alertas.append(f"DUPLICATA      | {chave[0]} | {chave[1]} | "
-                           f"{chave[2]}km | {chave[3]} | ids: {ids}")
+                           f"{chave[2]}km | {chave[3]}")
+            for rec_id, id_campo in refs:
+                alertas.append(f"                 id={id_campo}  "
+                               f"{link_registro(rec_id)}")
     if parciais:
         total = sum(parciais.values())
         alertas.append("")

@@ -1,0 +1,56 @@
+name: Post regional
+
+on:
+  workflow_dispatch:
+    inputs:
+      estados:
+        description: 'UFs separadas por vírgula (ex: AL,BA,CE,MA,PB,PE,PI,RN,SE)'
+        required: true
+        default: 'AL,BA,CE,MA,PB,PE,PI,RN,SE'
+      titulo:
+        description: 'Nome da região na arte (ex: NORDESTE, SUL, RIO DE JANEIRO)'
+        required: true
+        default: 'NORDESTE'
+      dias_a_frente:
+        description: 'Janela em dias a partir de hoje'
+        required: false
+        default: '60'
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: pip install requests pillow
+
+      - name: Gerar o post
+        env:
+          AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          AIRTABLE_TABLE_EVENTOS: Eventos
+          ESTADOS: ${{ github.event.inputs.estados }}
+          TITULO: ${{ github.event.inputs.titulo }}
+          DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente }}
+        run: python scripts/post_regional.py
+
+      - name: Publicar os arquivos no repositório
+        run: |
+          git config user.name  "km-runners-bot"
+          git config user.email "bot@kmrunners.com.br"
+          git add posts/
+          git diff --staged --quiet || git commit -m "post regional gerado automaticamente"
+          git push
+
+      - name: Guardar como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-regional
+          path: posts/

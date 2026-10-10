@@ -16,6 +16,9 @@ on:
         required: false
         default: '60'
 
+permissions:
+  contents: write
+
 jobs:
   gerar:
     runs-on: ubuntu-latest
@@ -41,16 +44,22 @@ jobs:
           DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente }}
         run: python scripts/post_regional.py
 
+      - name: Guardar como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-regional
+          path: posts/
+          if-no-files-found: ignore
+
       - name: Publicar os arquivos no repositório
         run: |
           git config user.name  "km-runners-bot"
           git config user.email "bot@kmrunners.com.br"
           git add posts/
-          git diff --staged --quiet || git commit -m "post regional gerado automaticamente"
-          git push
-
-      - name: Guardar como artefato
-        uses: actions/upload-artifact@v4
-        with:
-          name: post-regional
-          path: posts/
+          if git diff --staged --quiet; then
+            echo "Nada novo para publicar."
+          else
+            git commit -m "post regional gerado automaticamente"
+            git push
+          fi

@@ -311,6 +311,14 @@ def montar_arte(itens, inicio, fim, total, n_ufs, n_cidades, caminho):
     im.save(caminho, quality=95)
 
 
+def hashtag_titulo() -> str:
+    """#saopaulo a partir de "EM SÃO PAULO"; #nordeste a partir de "NO NORDESTE"."""
+    t = _norm(TITULO)
+    t = re.sub(r"^(em|no|na|nos|nas|de|do|da)\s+", "", t)
+    t = re.sub(r"[^a-z0-9]+", "", t)
+    return f"#{t}" if t else ""
+
+
 def montar_legenda(itens, inicio, fim, total, exibidas, ufs_lista):
     cidades = []
     for item in itens:
@@ -344,7 +352,7 @@ def montar_legenda(itens, inicio, fim, total, exibidas, ufs_lista):
         "🔗 Link na bio — ou busque KM Runners na sua loja de apps.",
         "",
         "#corridaderua #maratona #meiamaratona #corrida #running #corredores"
-        f" #{TITULO.lower()} #calendariodecorridas #10k #21k #42k",
+        f" {hashtag_titulo()} #calendariodecorridas #10k #21k #42k",
     ]
     return "\n".join(linhas)
 

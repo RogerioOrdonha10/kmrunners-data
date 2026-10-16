@@ -8,9 +8,9 @@ on:
         required: true
         default: 'AL,BA,CE,MA,PB,PE,PI,RN,SE'
       titulo:
-        description: 'Nome da região na arte (ex: NORDESTE, SUL, RIO DE JANEIRO)'
+        description: 'Título COM preposição (ex: NO NORDESTE, EM SÃO PAULO, EM BERTIOGA)'
         required: true
-        default: 'NORDESTE'
+        default: 'NO NORDESTE'
       dias_a_frente:
         description: 'Janela em dias a partir de hoje'
         required: false

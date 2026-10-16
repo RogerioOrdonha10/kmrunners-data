@@ -13,7 +13,7 @@ Variáveis de ambiente:
   AIRTABLE_BASE_ID          ex: appmRv32Vt5S1UfbY            [obrigatória]
   AIRTABLE_TABLE_EVENTOS    padrão: Eventos
   ESTADOS                   UFs separadas por vírgula, ex: AL,BA,CE,PE
-  TITULO                    rótulo da região, ex: NORDESTE
+  TITULO                    com preposição, ex: NO NORDESTE, EM SÃO PAULO
   DIAS_A_FRENTE             janela em dias, padrão 60
 """
 
@@ -37,7 +37,7 @@ AIRTABLE_TABLE = os.environ.get("AIRTABLE_TABLE_EVENTOS", "Eventos")
 ESTADOS = [u.strip().upper() for u in
            os.environ.get("ESTADOS", "AL,BA,CE,MA,PB,PE,PI,RN,SE").split(",")
            if u.strip()]
-TITULO = os.environ.get("TITULO", "NORDESTE").strip().upper()
+TITULO = os.environ.get("TITULO", "NO NORDESTE").strip().upper()
 DIAS_A_FRENTE = int(os.environ.get("DIAS_A_FRENTE", "60"))
 
 AIRTABLE_URL = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE}"
@@ -258,21 +258,28 @@ def texto_periodo(inicio: date, fim: date) -> str:
             f"{MESES[fim.month-1].upper()} DE {fim.year}")
 
 
-def montar_arte(itens, inicio, fim, total, n_ufs, caminho):
+def montar_arte(itens, inicio, fim, total, n_ufs, n_cidades, caminho):
+    def plural(n, s1, sN):
+        return f"{n} {s1}" if n == 1 else f"{n} {sN}"
+
     base = Image.new("RGB", (W, H), AZUL)
     g = Image.new("RGB", (W, H), AZUL)
     ImageDraw.Draw(g).ellipse([-320, -760, W + 320, 400], fill=(46, 84, 130))
     im = Image.blend(base, g.filter(ImageFilter.GaussianBlur(180)), 0.60)
     d = ImageDraw.Draw(im)
 
-    centro(d, 54, f"CORRIDAS NO {TITULO}", BK(56), BRANCO, esp=2)
+    centro(d, 54, f"CORRIDAS {TITULO}", BK(56), BRANCO, esp=2)
     centro(d, 128, texto_periodo(inicio, fim), XB(32), OURO)
-    centro(d, 174, f"{total} provas em {n_ufs} estados", MD(25), CLARO)
+    if n_ufs == 1:
+        onde = plural(max(n_cidades, 1), "cidade", "cidades")
+    else:
+        onde = plural(n_ufs, "estado", "estados")
+    centro(d, 174, f"{plural(total, 'prova', 'provas')} em {onde}", MD(25), CLARO)
     d.line([(W / 2 - 170, 216), (W / 2 + 170, 216)], fill=OURO, width=4)
 
     topo, rodape = 250, H - 176
     altura_util = rodape - 24 - topo
-    passo = min(58, altura_util // max(len(itens), 1))
+    passo = max(58, min(92, altura_util // max(len(itens), 1)))
 
     y = topo
     for item in itens:
@@ -366,6 +373,8 @@ def main():
 
     itens = escolher(por_uf)
     exibidas = len(itens)
+    n_cidades = len({_norm(c) for lst in por_uf.values()
+                     for it in lst for c in it["cidades"]})
     ufs_lista = [u for u in ESTADOS if por_uf.get(u)]
     print(f"[arte] {exibidas} provas exibidas de {total}")
 
@@ -374,7 +383,7 @@ def main():
     png = os.path.join(PASTA_SAIDA, f"regional_{slug}_{marca}.png")
     txt = os.path.join(PASTA_SAIDA, f"regional_{slug}_{marca}.txt")
 
-    montar_arte(itens, inicio, fim, total, len(ufs_lista), png)
+    montar_arte(itens, inicio, fim, total, len(ufs_lista), n_cidades, png)
     with open(txt, "w", encoding="utf-8") as f:
         f.write(montar_legenda(itens, inicio, fim, total, exibidas, ufs_lista))
     print(f"[arte] {png}")

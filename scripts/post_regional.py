@@ -328,8 +328,19 @@ def montar_legenda(itens, inicio, fim, total, exibidas, ufs_lista):
     restantes = max(total - exibidas, 0)
     ufs = ", ".join(ufs_lista)
 
+    # "NO NORDESTE" -> "no Nordeste"; "EM SÃO PAULO" -> "em São Paulo"
+    partes = TITULO.strip().split(" ", 1)
+    titulo_txt = partes[0].lower() + (" " + partes[1].title() if len(partes) > 1 else "")
+
+    if restantes == 1:
+        resto = " — a outra está no app."
+    elif restantes > 1:
+        resto = f" — as outras {restantes} estão no app."
+    else:
+        resto = "."
+
     linhas = [
-        f"🏃 As corridas de rua do {TITULO.title()} que estão chegando",
+        f"🏃 As corridas de rua {titulo_txt} que estão chegando",
         "",
         f"Provas em {ufs} entre {inicio.day}/{inicio.month:02d} e "
         f"{fim.day}/{fim.month:02d}.",
@@ -346,7 +357,7 @@ def montar_legenda(itens, inicio, fim, total, exibidas, ufs_lista):
         "📲 Manda pro seu grupo de treino.",
         "",
         f"São {total} provas na região neste período"
-        + (f" — as outras {restantes} estão no app." if restantes else ".")
+        + resto
         + " Filtra por cidade, distância e mês. Grátis, sem cadastro.",
         "",
         "🔗 Link na bio — ou busque KM Runners na sua loja de apps.",

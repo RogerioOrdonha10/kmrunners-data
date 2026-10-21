@@ -37,6 +37,16 @@ jobs:
           DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente || '0' }}
         run: python scripts/post_fim_de_semana.py
 
+      - name: Separar só os arquivos desta execução
+        if: always()
+        run: |
+          mkdir -p saida
+          git status --porcelain --untracked-files=all posts/ | awk '{print $NF}' | while read -r f; do
+            cp "$f" saida/
+          done
+          echo "Arquivos desta execução:"
+          ls -la saida
+
       - name: Publicar os arquivos no repositório
         run: |
           git config user.name  "km-runners-bot"
@@ -54,5 +64,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: post-fim-de-semana
-          path: posts/
+          path: saida/
           if-no-files-found: ignore

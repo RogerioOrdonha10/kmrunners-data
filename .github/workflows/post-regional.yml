@@ -44,11 +44,14 @@ jobs:
           DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente }}
         run: python scripts/post_regional.py
 
-      - name: Separar só o post de hoje
+      - name: Separar só os arquivos desta execução
         if: always()
         run: |
           mkdir -p saida
-          cp posts/regional_*_$(date -u +%F).* saida/ 2>/dev/null || echo "Nenhum post novo hoje."
+          git status --porcelain --untracked-files=all posts/ | awk '{print $NF}' | while read -r f; do
+            cp "$f" saida/
+          done
+          echo "Arquivos desta execução:"
           ls -la saida
 
       - name: Guardar como artefato

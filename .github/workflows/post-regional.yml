@@ -44,12 +44,19 @@ jobs:
           DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente }}
         run: python scripts/post_regional.py
 
+      - name: Separar só o post de hoje
+        if: always()
+        run: |
+          mkdir -p saida
+          cp posts/regional_*_$(date -u +%F).* saida/ 2>/dev/null || echo "Nenhum post novo hoje."
+          ls -la saida
+
       - name: Guardar como artefato
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: post-regional
-          path: posts/
+          path: saida/
           if-no-files-found: ignore
 
       - name: Publicar os arquivos no repositório

@@ -1,0 +1,61 @@
+DUPLICATA      | corrida dos bancarios | aracaju | 5km | Setembro / 2027
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/rec7pRy15ufiulGtl
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/reciZhJGjU2M1K5K8
+DUPLICATA      | corrida da enfermagem | sao paulo | 5km | Maio / 2027
+                 id=4  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/rec9gBASGyWvTOIdE
+                 id=165  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recqzjsYdavCFHRYC
+DUPLICATA      | corrida live run | sao paulo | 10km | Setembro / 2027
+                 id=230  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recAjXJfZDU5xQAEF
+                 id=55  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/reccBGPrHnu2dmPsW
+DUPLICATA      | blue run | sao paulo | 10km | Julho/2027
+                 id=681  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recCEuezsmiaxhfHa
+                 id=29  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recS8wHoLKQk7jXft
+DUPLICATA      | blue run porto saude | sao paulo | 10km | Julho/2027
+                 id=429  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recDznRUmz35k15jk
+                 id=430  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/reck7qfcunPlTFe54
+DUPLICATA      | meia maratona recife | recife | 21km | 07/03/2027
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recEdUe0L5B79JtSd
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/rech1sQRWtdNMiAHc
+DUPLICATA      | corrida live run | sao paulo | 5km | Julho/2027
+                 id=25  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recHmobU9l4Wo2x2u
+                 id=204  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recUch6nEl92LA1rj
+DUPLICATA      | corrida outlet premium | itupeva | 10km | Outubro / 2027
+                 id=417  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recJg2YNsyj6iFAOu
+                 id=416  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recpcYG1tG3uaZc2f
+DUPLICATA      | meia maratona | piracicaba | 5km | 13/12/2026
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recM4mXQmGVZh9L6d
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recsXPi2IZtwl6Ls3
+DUPLICATA      | hoka speed run | manaus | 10km | Outubro / 2027
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recMfTsl5qWgWhWsz
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recdEXXvVamWdqlso
+DUPLICATA      | meia maratona | piracicaba | 21km | 13/12/2026
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recN9d8wJ63jkfoRv
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recRJsqFmAKfYMmHK
+DUPLICATA      | corrida dos bancarios | aracaju | 10km | Setembro / 2027
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recTwwSlbk6HbX4j3
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recbEdPYzi0RBTu1f
+DUPLICATA      | meia maratona recife | recife | 10km | 07/03/2027
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recVIYmkCckpeklFA
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recrU4l9kSlsnJLRD
+DUPLICATA      | corrida gp brasil | salvador | 15km | 06/12/2026
+                 id=777  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recZAjglr47WejvNP
+                 id=775  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/reck5lsv4KiUqvBxi
+DUPLICATA      | meia maratona recife | recife | 5km | 07/03/2027
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recZoNsl0ntE8KhDe
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recrtziYgWWy1ILt3
+DUPLICATA      | corrida live run | sao paulo | 5km | Agosto / 2027
+                 id=42  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recgQ7zJvlqRvr6em
+                 id=218  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recpMJbAL4DfoEH3T
+DUPLICATA      | meia maratona | piracicaba | 10km | 13/12/2026
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recssM4yzmNecvciW
+                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recuD4tjkfBBqQLif
+
+--- DATAS PARCIAIS (não são erro): 840 registros ---
+DATA PARCIAL   | 'Agosto / 2027' | 257 registros
+DATA PARCIAL   | 'Setembro / 2027' | 212 registros
+DATA PARCIAL   | 'Julho/2027' | 152 registros
+DATA PARCIAL   | 'Outubro / 2027' | 105 registros
+DATA PARCIAL   | 'Junho / 2027' | 57 registros
+DATA PARCIAL   | 'Maio / 2027' | 51 registros
+DATA PARCIAL   | 'Abril /2027' | 4 registros
+DATA PARCIAL   | '2027' | 2 registros

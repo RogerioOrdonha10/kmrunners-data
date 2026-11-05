@@ -1,15 +1,20 @@
-name: Post do fim de semana
+name: Post regional
 
 on:
-  schedule:
-    # Toda segunda-feira às 09:00 de Brasília (12:00 UTC)
-    - cron: '0 12 * * 1'
   workflow_dispatch:
     inputs:
+      estados:
+        description: 'UFs separadas por vírgula (ex: AL,BA,CE,MA,PB,PE,PI,RN,SE)'
+        required: true
+        default: 'AL,BA,CE,MA,PB,PE,PI,RN,SE'
+      titulo:
+        description: 'Título COM preposição (ex: NO NORDESTE, EM SÃO PAULO, EM BERTIOGA)'
+        required: true
+        default: 'NO NORDESTE'
       dias_a_frente:
-        description: 'Dias a somar antes de achar o fim de semana (0 = o próximo)'
+        description: 'Janela em dias a partir de hoje'
         required: false
-        default: '0'
+        default: '60'
 
 permissions:
   contents: write
@@ -17,8 +22,6 @@ permissions:
 jobs:
   gerar:
     runs-on: ubuntu-latest
-    env:
-      DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente || '0' }}
     steps:
       - name: Baixar o repositório
         uses: actions/checkout@v4
@@ -29,28 +32,35 @@ jobs:
           python-version: '3.11'
 
       - name: Instalar dependências
-        run: pip install --quiet requests pillow
+        run: pip install requests pillow
 
-      - name: Gerar a arte e a legenda
+      - name: Gerar o post
         env:
           AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
           AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
           AIRTABLE_TABLE_EVENTOS: Eventos
-        run: python scripts/post_fim_de_semana.py
+          ESTADOS: ${{ github.event.inputs.estados }}
+          TITULO: ${{ github.event.inputs.titulo }}
+          DIAS_A_FRENTE: ${{ github.event.inputs.dias_a_frente }}
+        run: python scripts/post_regional.py
 
-      - name: Separar o post do fim de semana pedido
+      - name: Separar só os arquivos desta execução
         if: always()
         run: |
           mkdir -p saida
-          # Mesmo cálculo do script: sábado a partir de hoje + DIAS_A_FRENTE
-          base=$(date -u -d "+${DIAS_A_FRENTE} days" +%F)
-          dow=$(date -u -d "$base" +%u)          # 1=segunda ... 7=domingo
-          if [ "$dow" = "7" ]; then add=6; else add=$(( (6 - dow + 7) % 7 )); fi
-          sab=$(date -u -d "$base +${add} days" +%F)
-          echo "Fim de semana pedido: sábado $sab"
-          cp posts/fds_${sab}* saida/ 2>/dev/null || echo "Nenhum arquivo para $sab."
-          echo "Arquivos no zip:"
+          git status --porcelain --untracked-files=all posts/ | awk '{print $NF}' | while read -r f; do
+            cp "$f" saida/
+          done
+          echo "Arquivos desta execução:"
           ls -la saida
+
+      - name: Guardar como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-regional
+          path: saida/
+          if-no-files-found: ignore
 
       - name: Publicar os arquivos no repositório
         run: |
@@ -60,14 +70,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "Nada novo para publicar."
           else
-            git commit -m "post do fim de semana gerado automaticamente"
+            git commit -m "post regional gerado automaticamente"
             git push
           fi
-
-      - name: Anexar a arte ao resumo da execução
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: post-fim-de-semana
-          path: saida/
-          if-no-files-found: ignore

@@ -31,9 +31,6 @@ DUPLICATA      | hoka speed run | manaus | 10km | Outubro / 2027
 DUPLICATA      | meia maratona | piracicaba | 21km | 13/12/2026
                  id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recN9d8wJ63jkfoRv
                  id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recRJsqFmAKfYMmHK
-DUPLICATA      | corrida caraguatatubense | caraguatatuba | 15km | 31/12/2026
-                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recNPOKqLYi8VmiGG
-                 id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recOsstxzMNC3ogIS
 DUPLICATA      | corrida dos bancarios | aracaju | 10km | Setembro / 2027
                  id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recTwwSlbk6HbX4j3
                  id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recbEdPYzi0RBTu1f

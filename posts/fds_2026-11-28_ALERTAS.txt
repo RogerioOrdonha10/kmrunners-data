@@ -50,8 +50,8 @@ DUPLICATA      | meia maratona | piracicaba | 10km | 13/12/2026
                  id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recssM4yzmNecvciW
                  id=None  https://airtable.com/appmRv32Vt5S1UfbY/tblqjvIf09EMJgzN7/recuD4tjkfBBqQLif
 
---- DATAS PARCIAIS (não são erro): 940 registros ---
-DATA PARCIAL   | 'Agosto / 2027' | 257 registros
+--- DATAS PARCIAIS (não são erro): 936 registros ---
+DATA PARCIAL   | 'Agosto / 2027' | 253 registros
 DATA PARCIAL   | 'Setembro / 2027' | 212 registros
 DATA PARCIAL   | 'Julho/2027' | 152 registros
 DATA PARCIAL   | 'Outubro / 2027' | 113 registros

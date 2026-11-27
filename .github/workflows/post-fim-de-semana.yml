@@ -31,6 +31,11 @@ jobs:
       - name: Instalar dependências
         run: pip install --quiet requests pillow
 
+      - name: Marcar o início da geração
+        run: |
+          sleep 1
+          touch "$RUNNER_TEMP/inicio"
+
       - name: Gerar a arte e a legenda
         env:
           AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
@@ -38,19 +43,16 @@ jobs:
           AIRTABLE_TABLE_EVENTOS: Eventos
         run: python scripts/post_fim_de_semana.py
 
-      - name: Separar o post do fim de semana pedido
+      - name: Separar os arquivos gerados nesta execução
         if: always()
         run: |
           mkdir -p saida
-          # Mesmo cálculo do script: sábado a partir de hoje + DIAS_A_FRENTE
-          base=$(date -u -d "+${DIAS_A_FRENTE} days" +%F)
-          dow=$(date -u -d "$base" +%u)          # 1=segunda ... 7=domingo
-          if [ "$dow" = "7" ]; then add=6; else add=$(( (6 - dow + 7) % 7 )); fi
-          sab=$(date -u -d "$base +${add} days" +%F)
-          echo "Fim de semana pedido: sábado $sab"
-          cp posts/fds_${sab}* saida/ 2>/dev/null || echo "Nenhum arquivo para $sab."
+          # Pega todo arquivo fds_ criado nesta execução, qualquer que seja a data no nome
+          # (o script usa a data do 1º dia com prova, que pode não ser o sábado pedido)
+          find posts -maxdepth 1 -name 'fds_*' -newer "$RUNNER_TEMP/inicio" -exec cp {} saida/ \;
           echo "Arquivos no zip:"
           ls -la saida
+          if [ -z "$(ls -A saida)" ]; then echo "Nenhum arquivo novo gerado nesta execução."; fi
 
       - name: Publicar os arquivos no repositório
         run: |
